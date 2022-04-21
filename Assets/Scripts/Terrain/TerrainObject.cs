@@ -5,6 +5,8 @@ using TMPro;
 
 public class TerrainObject : MonoBehaviour
 {
+    const int MAX_WIDTH = 121;
+
     public TextAsset networkJsonFile;
     // public GameObject nodePrefab;
     // public Camera worldCamera;
@@ -16,8 +18,8 @@ public class TerrainObject : MonoBehaviour
     public bool autoUpdate = false;
     JSONNetworkData data;
 
-    MeshFilter meshFilter = null;
-    MeshRenderer meshRenderer = null;
+    public MeshFilter meshFilter;
+    public MeshRenderer meshRenderer;
     // int numControllersPressed = 0;
     // Vector3 ogControllerRelPos = Vector3.zero;
     // Vector3 ogControllersPos;
@@ -40,14 +42,11 @@ public class TerrainObject : MonoBehaviour
     // {
     // }
 
+    public float scaleHeight = 50f;
+    public float falloff = 1f;
+
     public void GenerateTerrain()
     {
-        if (!meshFilter)
-        {
-            meshFilter = FindObjectOfType<MeshFilter>();
-            meshRenderer = FindObjectOfType<MeshRenderer>();
-        }
-
         var graph = new TerrainGraphData();
         graph.links = new TerrainLinkData[] {
             new TerrainLinkData{ source = 0, target = 2, weight = 1 },
@@ -60,17 +59,24 @@ public class TerrainObject : MonoBehaviour
             new TerrainLinkData{ source = 5, target = 6, weight = 1 },
         };
         graph.nodes = new TerrainNodeData[] {
-            new TerrainNodeData{ x = 130 * 241 / 720, y = 132 * 241 / 720, size = 1 },
-            new TerrainNodeData{ x = 484 * 241 / 720, y = 77 * 241 / 720, size = 2 },
-            new TerrainNodeData{ x = 267 * 241 / 720, y = 213 * 241 / 720, size = 5 },
-            new TerrainNodeData{ x = 495 * 241 / 720, y = 268 * 241 / 720, size = 4 },
-            new TerrainNodeData{ x = 171 * 241 / 720, y = 439 * 241 / 720, size = 3 },
-            new TerrainNodeData{ x = 276 * 241 / 720, y = 600 * 241 / 720, size = 1 },
-            new TerrainNodeData{ x = 543 * 241 / 720, y = 581 * 241 / 720, size = 3 },
+            new TerrainNodeData{ x = 130 * MAX_WIDTH / 720, y = 132 * MAX_WIDTH / 720, size = 1 },
+            new TerrainNodeData{ x = 484 * MAX_WIDTH / 720, y = 77 * MAX_WIDTH / 720, size = 2 },
+            new TerrainNodeData{ x = 267 * MAX_WIDTH / 720, y = 213 * MAX_WIDTH / 720, size = 5 },
+            new TerrainNodeData{ x = 495 * MAX_WIDTH / 720, y = 268 * MAX_WIDTH / 720, size = 4 },
+            new TerrainNodeData{ x = 171 * MAX_WIDTH / 720, y = 439 * MAX_WIDTH / 720, size = 3 },
+            new TerrainNodeData{ x = 276 * MAX_WIDTH / 720, y = 600 * MAX_WIDTH / 720, size = 1 },
+            new TerrainNodeData{ x = 543 * MAX_WIDTH / 720, y = 581 * MAX_WIDTH / 720, size = 3 },
         };
 
-        meshFilter.sharedMesh = TerrainMeshGenerator.GenerateFromHeights(HeightMap.GenerateFromGraph(graph, 241, 241));
+        var heightMap = new HeightMap(
+            scaleHeight: scaleHeight, 
+            falloff: falloff * MAX_WIDTH, 
+            width: MAX_WIDTH, 
+            height: MAX_WIDTH
+        ).GenerateFromGraph(graph);
 
-        print("hello?");
+        meshFilter.sharedMesh = TerrainMeshGenerator.GenerateFromHeights(heightMap);
+
+        print("rip?");
     }
 }
