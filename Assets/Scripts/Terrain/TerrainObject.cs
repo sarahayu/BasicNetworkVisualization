@@ -5,7 +5,7 @@ using TMPro;
 
 public class TerrainObject : MonoBehaviour
 {
-    const int MAX_WIDTH = 121;
+    const int MAX_WIDTH = 81;
 
     public TextAsset networkJsonFile;
     // public GameObject nodePrefab;
@@ -68,14 +68,20 @@ public class TerrainObject : MonoBehaviour
             new TerrainNodeData{ x = 543 * MAX_WIDTH / 720, y = 581 * MAX_WIDTH / 720, size = 3 },
         };
 
-        var heightMap = new HeightMap(
+        // var heightMap = new HeightMap(
+        //     scaleHeight: scaleHeight, 
+        //     falloff: falloff * MAX_WIDTH, 
+        //     width: MAX_WIDTH, 
+        //     height: MAX_WIDTH
+        // ).GenerateFromGraph(graph);
+
+        meshFilter.sharedMesh = TerrainMeshGenerator.GenerateFromGraph(
+            graph: graph,
             scaleHeight: scaleHeight, 
             falloff: falloff * MAX_WIDTH, 
             width: MAX_WIDTH, 
             height: MAX_WIDTH
-        ).GenerateFromGraph(graph);
-
-        meshFilter.sharedMesh = TerrainMeshGenerator.GenerateFromHeights(heightMap);
+        );
 
         print("rip?");
     }

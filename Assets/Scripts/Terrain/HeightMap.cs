@@ -5,6 +5,7 @@ using UnityEngine;
 
 public class HeightMap
 {
+    TerrainGraphData _graph;
     float _scaleHeight;
     float _falloff;
     int _width;
@@ -13,34 +14,37 @@ public class HeightMap
     float _graphMaxWeight = -1f;
     float _graphMaxSize = -1f;
 
-    public HeightMap(float scaleHeight, float falloff, int width, int height)
+    public HeightMap(TerrainGraphData graph, float scaleHeight, float falloff, int width, int height)
     {
+        _graph = graph;
         _scaleHeight = scaleHeight;
         _falloff = falloff;
         _width = width;
         _height = height;
+
+        calculateMaxes();
     }
     
-    public float[,] GenerateFromGraph(TerrainGraphData graph)
-    {
-        var heightMap = new float[_width, _height];
-        calculateMaxes(graph);
-        for (int y = 0; y < _height; y++)
-            for (int x = 0; x < _width; x++)
-            {
-                heightMap[x, y] = maxWeightAt(graph, x, y) * _scaleHeight;
-            }
+    // public float[,] GenerateFromGraph(TerrainGraphData graph)
+    // {
+    //     var heightMap = new float[_width, _height];
+    //     calculateMaxes(graph);
+    //     for (int y = 0; y < _height; y++)
+    //         for (int x = 0; x < _width; x++)
+    //         {
+    //             heightMap[x, y] = maxWeightAt(graph, x, y) * _scaleHeight;
+    //         }
 
-        var blurred = MathUtil.gaussBlur_4(heightMap, 1);
-        return blurred;
-    }
+    //     // var blurred = MathUtil.gaussBlur_4(heightMap, 1);
+    //     return heightMap;
+    // }
 
-    void calculateMaxes(TerrainGraphData graph)
+    void calculateMaxes()
     {
-        foreach (var link in graph.links)
+        foreach (var link in _graph.links)
             if (link.weight > _graphMaxWeight) _graphMaxWeight = link.weight;
             
-        foreach (var node in graph.nodes)
+        foreach (var node in _graph.nodes)
             if (node.size > _graphMaxSize) _graphMaxSize = node.size;
     }
 
@@ -49,16 +53,16 @@ public class HeightMap
         return Mathf.Max(0.01f, Mathf.Lerp(0.25f, 1, (MathUtil.clerp((height1 - 1) / (_graphMaxSize - 1), (height2 - 1) / (_graphMaxSize - 1), Mathf.Lerp(0, 0.5f, 1 - (weight - 1) / (_graphMaxWeight - 1)), offset))));
     }
 
-    float maxWeightAt(TerrainGraphData graph, float x, float y)
+    public float maxWeightAt(float x, float y)
     {
         var maxWeight = 0f;
-        foreach (var link in graph.links)
+        foreach (var link in _graph.links)
         {
             var source = link.source;
             var target = link.target;
             var weight = link.weight;
-            var first = graph.nodes[source];
-            var second = graph.nodes[target];
+            var first = _graph.nodes[source];
+            var second = _graph.nodes[target];
             int x1 = first.x, y1 = first.y, size1 = first.size,
                 x2 = second.x, y2 = second.y, size2 = second.size;
             int len_x = Math.Abs(x1 - x2), len_y = Math.Abs(y1 - y2);
