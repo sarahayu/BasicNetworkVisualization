@@ -6,21 +6,19 @@ using UnityEngine;
 public class HeightMap
 {
     TerrainGraphData _graph;
-    float _scaleHeight;
     float _falloff;
-    int _width;
-    int _height;
+    int _graphWidth;
+    int _graphHeight;
 
     float _graphMaxWeight = -1f;
     float _graphMaxSize = -1f;
 
-    public HeightMap(TerrainGraphData graph, float scaleHeight, float falloff, int width, int height)
+    public HeightMap(TerrainGraphData graph, float falloff, int graphWidth, int graphHeight)
     {
         _graph = graph;
-        _scaleHeight = scaleHeight;
         _falloff = falloff;
-        _width = width;
-        _height = height;
+        _graphWidth = graphWidth;
+        _graphHeight = graphHeight;
 
         calculateMaxes();
     }
@@ -39,6 +37,23 @@ public class HeightMap
     //     return heightMap;
     // }
 
+    public Texture2D GenerateTexture(int resX, int resY)
+    {
+        var colors = new Color[resX * resY];
+
+        for (int y = 0; y < resY; y++)
+            for (int x = 0; x < resX; x++)
+            {
+                colors[y * resX + x] = Color.Lerp(Color.black, Color.white, maxWeightAt((float)x / resX, (float)y / resY));
+            }
+
+        var texture = new Texture2D(resX, resY);
+        texture.SetPixels(colors);
+        texture.Apply();
+
+        return texture;
+    }
+
     void calculateMaxes()
     {
         foreach (var link in _graph.links)
@@ -53,8 +68,9 @@ public class HeightMap
         return Mathf.Max(0.01f, Mathf.Lerp(0.25f, 1, (MathUtil.clerp((height1 - 1) / (_graphMaxSize - 1), (height2 - 1) / (_graphMaxSize - 1), Mathf.Lerp(0, 0.5f, 1 - (weight - 1) / (_graphMaxWeight - 1)), offset))));
     }
 
-    public float maxWeightAt(float x, float y)
+    public float maxWeightAt(float ratioX, float ratioY)
     {
+        float x = ratioX * (_graphWidth - 1), y = ratioY * (_graphHeight - 1);
         var maxWeight = 0f;
         foreach (var link in _graph.links)
         {

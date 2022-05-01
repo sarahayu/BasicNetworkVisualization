@@ -12,12 +12,17 @@ public class TerrainEditor : Editor
 
         if (DrawDefaultInspector() && terrain.autoUpdate)
         {
-            terrain.GenerateTerrain();
+            terrain.GenerateTerrainLowQuality();
         }
 
-        if (GUILayout.Button("Generate"))
+        if (GUILayout.Button("Generate Low Poly"))
         {
-            terrain.GenerateTerrain();
+            terrain.GenerateTerrainLowQuality();
+        }
+
+        if (GUILayout.Button("Generate With Normals"))
+        {
+            terrain.GenerateTerrainSmoothNormals();
         }
     }
 }

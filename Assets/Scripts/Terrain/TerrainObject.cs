@@ -5,7 +5,8 @@ using TMPro;
 
 public class TerrainObject : MonoBehaviour
 {
-    const int MAX_WIDTH = 81;
+    const int GRAPH_AREA_LEN = 81;
+    const int TEX_RES = 360;
 
     public TextAsset networkJsonFile;
     // public GameObject nodePrefab;
@@ -44,8 +45,12 @@ public class TerrainObject : MonoBehaviour
 
     public float scaleHeight = 50f;
     public float falloff = 1f;
+    public int subdivide = 1;
 
-    public void GenerateTerrain()
+    HeightMap _heightMap = null;
+    Texture2D _terrainTex = null;
+
+    public void GenerateTerrainLowQuality()
     {
         var graph = new TerrainGraphData();
         graph.links = new TerrainLinkData[] {
@@ -59,30 +64,63 @@ public class TerrainObject : MonoBehaviour
             new TerrainLinkData{ source = 5, target = 6, weight = 1 },
         };
         graph.nodes = new TerrainNodeData[] {
-            new TerrainNodeData{ x = 130 * MAX_WIDTH / 720, y = 132 * MAX_WIDTH / 720, size = 1 },
-            new TerrainNodeData{ x = 484 * MAX_WIDTH / 720, y = 77 * MAX_WIDTH / 720, size = 2 },
-            new TerrainNodeData{ x = 267 * MAX_WIDTH / 720, y = 213 * MAX_WIDTH / 720, size = 5 },
-            new TerrainNodeData{ x = 495 * MAX_WIDTH / 720, y = 268 * MAX_WIDTH / 720, size = 4 },
-            new TerrainNodeData{ x = 171 * MAX_WIDTH / 720, y = 439 * MAX_WIDTH / 720, size = 3 },
-            new TerrainNodeData{ x = 276 * MAX_WIDTH / 720, y = 600 * MAX_WIDTH / 720, size = 1 },
-            new TerrainNodeData{ x = 543 * MAX_WIDTH / 720, y = 581 * MAX_WIDTH / 720, size = 3 },
+            new TerrainNodeData{ x = 130 * GRAPH_AREA_LEN / 720, y = 132 * GRAPH_AREA_LEN / 720, size = 1 },
+            new TerrainNodeData{ x = 484 * GRAPH_AREA_LEN / 720, y = 77 * GRAPH_AREA_LEN / 720, size = 2 },
+            new TerrainNodeData{ x = 267 * GRAPH_AREA_LEN / 720, y = 213 * GRAPH_AREA_LEN / 720, size = 5 },
+            new TerrainNodeData{ x = 495 * GRAPH_AREA_LEN / 720, y = 268 * GRAPH_AREA_LEN / 720, size = 4 },
+            new TerrainNodeData{ x = 171 * GRAPH_AREA_LEN / 720, y = 439 * GRAPH_AREA_LEN / 720, size = 3 },
+            new TerrainNodeData{ x = 276 * GRAPH_AREA_LEN / 720, y = 600 * GRAPH_AREA_LEN / 720, size = 1 },
+            new TerrainNodeData{ x = 543 * GRAPH_AREA_LEN / 720, y = 581 * GRAPH_AREA_LEN / 720, size = 3 },
         };
 
-        // var heightMap = new HeightMap(
-        //     scaleHeight: scaleHeight, 
-        //     falloff: falloff * MAX_WIDTH, 
-        //     width: MAX_WIDTH, 
-        //     height: MAX_WIDTH
-        // ).GenerateFromGraph(graph);
+        _heightMap = new HeightMap(
+            graph: graph,
+            falloff: falloff * GRAPH_AREA_LEN, 
+            graphWidth: GRAPH_AREA_LEN, 
+            graphHeight: GRAPH_AREA_LEN
+        );
 
         meshFilter.sharedMesh = TerrainMeshGenerator.GenerateFromGraph(
             graph: graph,
-            scaleHeight: scaleHeight, 
-            falloff: falloff * MAX_WIDTH, 
-            width: MAX_WIDTH, 
-            height: MAX_WIDTH
+            graphWidth: GRAPH_AREA_LEN, 
+            graphHeight: GRAPH_AREA_LEN,
+            heightMap: _heightMap, 
+            meshHeight: scaleHeight, 
+            meshWidth: GRAPH_AREA_LEN, 
+            meshLength: GRAPH_AREA_LEN,
+            subdivide: subdivide,
+            useNormalMap: false
         );
 
-        print("rip?");
+
+        var colFlat = new Color[TEX_RES * TEX_RES];
+        for (int y = 0; y < TEX_RES; y++)
+            for (int x = 0; x < TEX_RES; x++)
+                colFlat[y * TEX_RES + x] = Color.white;
+
+        var texFlat = new Texture2D(TEX_RES, TEX_RES);
+        texFlat.SetPixels(colFlat);
+        texFlat.Apply();
+        meshRenderer.sharedMaterial.mainTexture = texFlat;
+        meshRenderer.sharedMaterial.SetTexture("_BumpMap", null);
+    }
+
+    public void GenerateTerrainSmoothNormals()
+    {
+        if (_heightMap == null)
+        {
+            GenerateTerrainLowQuality();
+        }
+
+        TerrainMeshGenerator.FlattenNormals(meshFilter.sharedMesh);
+
+        var texHeight = _heightMap.GenerateTexture(TEX_RES, TEX_RES);
+        // meshRenderer.sharedMaterial.SetTexture("_HeightMap", texHeight);
+        meshRenderer.sharedMaterial.SetTexture("_BumpMap", TextureUtil.GenerateNormalFromHeight(texHeight, scaleHeight, GRAPH_AREA_LEN));
+    }
+
+    void ModifyTerrain()
+    {
+
     }
 }

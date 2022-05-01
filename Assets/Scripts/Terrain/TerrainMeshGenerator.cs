@@ -9,18 +9,18 @@ using TriangleNet.Topology;
 
 public static class TerrainMeshGenerator
 {
-    static void PopulateGridPoints(List<Vertex> points, float w, float h)
+    static void PopulateGridPoints(List<Vertex> points, int width, int height, int subdivide)
     {
-        for (int y = 0; y < h; y += 1)
+        for (int y = 0; y < height + subdivide; y += subdivide)
         {
-            for (int x = 0; x < w; x += 1)
+            for (int x = 0; x < width + subdivide; x += subdivide)
             {
-                points.Add(new Vertex(x, y));
+                points.Add(new Vertex(Mathf.Min(x, width - 1), Mathf.Min(y, height - 1)));
             }
         }
     }
 
-    static void PopulateRidgePoints(List<Vertex> points, TerrainGraphData graph)
+    static void PopulateRidgePoints(List<Vertex> points, TerrainGraphData graph, int graphWidth, int graphHeight, int meshWidth, int meshLength, int subdivide)
     {
         foreach (var link in graph.links)
         {
@@ -41,24 +41,20 @@ public static class TerrainMeshGenerator
 
             while (Mathf.Abs(x - x1) < distX && Mathf.Abs(y - y1) < distY)
             {
-                points.Add(new Vertex(x, y));
-                x += (float)dir.x;
-                y += (float)dir.y;
+                points.Add(new Vertex(x * meshWidth / graphWidth, y * meshLength / graphHeight));
+                x += (float)dir.x * subdivide;
+                y += (float)dir.y * subdivide;
             }
-            points.Add(new Vertex(x2, y2));
+            points.Add(new Vertex(x2 * meshWidth / graphWidth, y2 * meshLength / graphHeight));
         }
     }
 
-    public static Mesh GenerateFromGraph(TerrainGraphData graph, float scaleHeight, float falloff, int width, int height)
+    public static Mesh GenerateFromGraph(TerrainGraphData graph, int graphWidth, int graphHeight, HeightMap heightMap, float meshHeight, int meshWidth, int meshLength, int subdivide, bool useNormalMap)
     {
         var points = new List<Vertex>();
-        // points.Add(new Vector2(-100,100));
-        // points.Add(new Vector2(100,100));
-        // points.Add(new Vector2(100, 100));
-        // points.Add(new Vector2(-100, 100));
-        PopulateGridPoints(points, width, height);
-        PopulateRidgePoints(points, graph);
-
+        
+        PopulateGridPoints(points, meshWidth, meshLength, subdivide);
+        PopulateRidgePoints(points, graph, graphWidth, graphHeight, meshWidth, meshLength, subdivide);
     
         // Choose triangulator: Incremental, SweepLine or Dwyer.
         var triangulator = new Dwyer();
@@ -69,75 +65,59 @@ public static class TerrainMeshGenerator
         // Generate mesh.
         var mesh = mesher.Triangulate(points);
 
-        // var triangulation = new DelaunayTriangulation();
-        // triangulation.Triangulate(points);
-        // var triangles = new List<Triangle2D>();
-        // triangulation.GetTrianglesDiscardingHoles(triangles);
-        
-        var heightMap = new HeightMap(
-            graph: graph,
-            scaleHeight: scaleHeight,
-            falloff: falloff,
-            width: width,
-            height: height
-        );
-
-        return CreateMeshFromTriangles(mesh.Triangles, heightMap, scaleHeight, width, height);
+        return CreateMeshFromTriangles(mesh.Triangles, heightMap, meshHeight, meshWidth, meshLength, useNormalMap);
     }
     
-    static Mesh CreateMeshFromTriangles(ICollection<Triangle> triangles, HeightMap heightMap, float scaleHeight, float width, float height)
+    static Mesh CreateMeshFromTriangles(ICollection<Triangle> triangles, HeightMap heightMap, float meshHeight, float meshWidth, float meshLength, bool useNormalMap)
     {        
-        float startX = (width - 1) / -2f, startZ = (height - 1) / 2f;
+        float startSubdivX = (meshWidth - 1) / -2f, startSubdivZ = (meshLength - 1) / 2f;
         
         List<Vector3> vertices = new List<Vector3>(triangles.Count * 3);
         List<int> indices = new List<int>(triangles.Count * 3);
+        List<Vector2> uvs = new List<Vector2>(triangles.Count * 3);
 
         int i = 0;
         foreach (var triangle in triangles)
         {
-            vertices.Add(new Vector3(startX + (float)triangle.GetVertex(0).x, scaleHeight * heightMap.maxWeightAt((float)triangle.GetVertex(0).x, (float)triangle.GetVertex(0).y), startZ - (float)triangle.GetVertex(0).y));
-            vertices.Add(new Vector3(startX + (float)triangle.GetVertex(1).x, scaleHeight * heightMap.maxWeightAt((float)triangle.GetVertex(1).x, (float)triangle.GetVertex(1).y), startZ - (float)triangle.GetVertex(1).y));
-            vertices.Add(new Vector3(startX + (float)triangle.GetVertex(2).x, scaleHeight * heightMap.maxWeightAt((float)triangle.GetVertex(2).x, (float)triangle.GetVertex(2).y), startZ - (float)triangle.GetVertex(2).y));
+            Vertex p0 = triangle.GetVertex(0), p1 = triangle.GetVertex(1), p2 = triangle.GetVertex(2);
+            float x0 = (float)p0.x, y0 = (float)p0.y,
+                x1 = (float)p1.x, y1 = (float)p1.y,
+                x2 = (float)p2.x, y2 = (float)p2.y;
+            vertices.Add(new Vector3(startSubdivX + x0, meshHeight * heightMap.maxWeightAt(x0 / (meshWidth - 1), y0 / (meshLength - 1)), startSubdivZ - y0));
+            vertices.Add(new Vector3(startSubdivX + x1, meshHeight * heightMap.maxWeightAt(x1 / (meshWidth - 1), y1 / (meshLength - 1)), startSubdivZ - y1));
+            vertices.Add(new Vector3(startSubdivX + x2, meshHeight * heightMap.maxWeightAt(x2 / (meshWidth - 1), y2 / (meshLength - 1)), startSubdivZ - y2));
             indices.Add(i * 3);
             indices.Add(i * 3 + 1);
             indices.Add(i * 3 + 2); // Changes order
+            uvs.Add(new Vector2(x0 / (meshWidth - 1), y0 / (meshLength - 1)));
+            uvs.Add(new Vector2(x1 / (meshWidth - 1), y1 / (meshLength - 1)));
+            uvs.Add(new Vector2(x2 / (meshWidth - 1), y2 / (meshLength - 1)));
             i++;
         }
-
-
-        // for (int i = 0; i < triangles.Count; ++i)
-        // {
-        //     vertices.Add(new Vector3(startX + triangles[i].GetVertex(0).x, scaleHeight * heightMap.maxWeightAt(triangles[i].p0.x, triangles[i].p0.y), startZ - triangles[i].p0.y));
-        //     vertices.Add(new Vector3(startX + triangles[i].GetVertex(0).x, scaleHeight * heightMap.maxWeightAt(triangles[i].p1.x, triangles[i].p1.y), startZ - triangles[i].p1.y));
-        //     vertices.Add(new Vector3(startX + triangles[i].GetVertex(0).x, scaleHeight * heightMap.maxWeightAt(triangles[i].p2.x, triangles[i].p2.y), startZ - triangles[i].p2.y));
-        //     indices.Add(i * 3);
-        //     indices.Add(i * 3 + 1);
-        //     indices.Add(i * 3 + 2); // Changes order
-        // }
-        
-        // List<Vector3> vertices = new List<Vector3>();
-        // List<int> indices = new List<int>();
-        
-        // vertices.Add(new Vector3(-100, 0, 100));
-        // vertices.Add(new Vector3(100, 0, 100));
-        // vertices.Add(new Vector3(100, 0, -100));
-
-        // vertices.Add(new Vector3(-100, 0, 100));
-        // vertices.Add(new Vector3(100, 0, -100));
-        // vertices.Add(new Vector3(-100, 0, -100));
-        // indices.Add(0);
-        // indices.Add(1);
-        // indices.Add(2);
-        // indices.Add(3);
-        // indices.Add(4);
-        // indices.Add(5);
 
         Mesh mesh = new Mesh();
         mesh.subMeshCount = 1;
         mesh.SetVertices(vertices);
         mesh.SetIndices(indices, MeshTopology.Triangles, 0);
-        mesh.RecalculateNormals();
+        mesh.SetUVs(0, uvs);
+
+        if (useNormalMap)
+            FlattenNormals(mesh);
+        else
+            mesh.RecalculateNormals();
         return mesh;
+    }
+
+    public static async void FlattenNormals(Mesh mesh)
+    {
+        List<Vector3> upNorms = new List<Vector3>(mesh.vertices.Length);
+
+        for (int i = 0; i < mesh.vertices.Length; i++)
+        {
+            upNorms.Add(Vector3.up);
+        }
+
+        mesh.SetNormals(upNorms);        
     }
 
     public static Mesh GenerateFromHeights(float [,] heightMap)

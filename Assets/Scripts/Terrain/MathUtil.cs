@@ -6,7 +6,8 @@ using UnityEngine;
 public static class MathUtil
 {
     public static float TWO_SQRT_SIX = 2 * Mathf.Sqrt(6);
-    public static LineDistItem LineDistSq(float x, float y, float x1, float y1, float x2, float y2) {
+    public static LineDistItem LineDistSq(float x, float y, float x1, float y1, float x2, float y2)
+    {
         //https://stackoverflow.com/a/6853926
 
         var A = x - x1;
@@ -22,15 +23,18 @@ public static class MathUtil
 
         float xx, yy;
 
-        if (param < 0) {
+        if (param < 0)
+        {
             xx = x1;
             yy = y1;
         }
-        else if (param > 1) {
+        else if (param > 1)
+        {
             xx = x2;
             yy = y2;
         }
-        else {
+        else
+        {
             xx = x1 + param * C;
             yy = y1 + param * D;
         }
@@ -38,10 +42,11 @@ public static class MathUtil
         var dx = x - xx;
         var dy = y - yy;
 
-        return new LineDistItem{ param = param, dist_sq = dx * dx + dy * dy };
+        return new LineDistItem { param = param, dist_sq = dx * dx + dy * dy };
     }
 
-    public static float clerp(float first, float second, float sag, float w) {
+    public static float clerp(float first, float second, float sag, float w)
+    {
         if (sag < 0.0001) return Mathf.Lerp(first, second, w);
         var s = 1 + sag;
         var v = second - first;
@@ -53,73 +58,70 @@ public static class MathUtil
         return (float)final;
     }
     // consider v=(x,y), returns how much along <v2-v1> the projection of v on it is
-    public static float proj_factor(float x, float y, float x1, float y1, float x2, float y2) {
+    public static float proj_factor(float x, float y, float x1, float y1, float x2, float y2)
+    {
         float ux = x - x1, uy = y - y1, vx = x2 - x1, vy = y2 - y1;
         return (ux * vx + uy * vy) / (vx * vx + vy * vy);
     }
 
-    public static float distSq(float x1, float y1, float x2, float y2) {
+    public static float distSq(float x1, float y1, float x2, float y2)
+    {
         return Mathf.Pow(x1 - x2, 2) + Mathf.Pow(y1 - y2, 2);
     }
 
     // http://blog.ivank.net/fastest-gaussian-blur.html
     // Photopea creator is the MVP
-    public static float[,] gaussBlur_4 (float [,] scl, int r) {
-        var w = scl.GetLength(0);
-        var h = scl.GetLength(1);
-        var tcl = new float[w, h];
+    public static void gaussBlur_4(float[] scl, float[] tcl, int w, int h, int r)
+    {
         var bxs = boxesForGauss(r, 3);
-        boxBlur_4 (scl, ref tcl, (bxs[0]-1)/2);
-        boxBlur_4 (tcl, ref scl, (bxs[1]-1)/2);
-        boxBlur_4 (scl, ref tcl, (bxs[2]-1)/2);
-        return tcl;
+        boxBlur_4(scl, tcl, w, h, (bxs[0] - 1) / 2);
+        boxBlur_4(tcl, scl, w, h, (bxs[1] - 1) / 2);
+        boxBlur_4(scl, tcl, w, h, (bxs[2] - 1) / 2);
     }
 
     static int[] boxesForGauss(float sigma, int n)  // standard deviation, number of boxes
     {
-        var wIdeal = Mathf.Sqrt((12*sigma*sigma/n)+1);  // Ideal averaging filter width 
-        var wl = Mathf.Floor(wIdeal);  if(wl%2==0) wl--;
-        var wu = wl+2;
-                    
-        var mIdeal = (12*sigma*sigma - n*wl*wl - 4*n*wl - 3*n)/(-4*wl - 4);
+        var wIdeal = Mathf.Sqrt((12 * sigma * sigma / n) + 1);  // Ideal averaging filter width 
+        var wl = Mathf.Floor(wIdeal); if (wl % 2 == 0) wl--;
+        var wu = wl + 2;
+
+        var mIdeal = (12 * sigma * sigma - n * wl * wl - 4 * n * wl - 3 * n) / (-4 * wl - 4);
         var m = Mathf.Round(mIdeal);
         // var sigmaActual = Math.sqrt( (m*wl*wl + (n-m)*wu*wu - n)/12 );
-                    
-        var sizes = new int[n];  for(var i=0; i<n; i++) sizes[i] = (int)(i<m?wl:wu);
+
+        var sizes = new int[n]; for (var i = 0; i < n; i++) sizes[i] = (int)(i < m ? wl : wu);
         return sizes;
     }
-    static void boxBlur_4 (float [,] scl, ref float [,] tcl, int r) {
-        var w = scl.GetLength(0);
-        var h = scl.GetLength(1);
-        Array.Copy(scl, tcl, scl.Length);
-        // for(var i=0; i< w * h; i++) tcl[i] = scl[i];
-        boxBlurH_4(tcl, ref scl, r);
-        boxBlurT_4(scl, ref tcl, r);
+    static void boxBlur_4(float[] scl, float[] tcl, int w, int h, int r)
+    {
+        for (var i = 0; i < scl.Length; i++) tcl[i] = scl[i];
+        boxBlurH_4(tcl, scl, w, h, r);
+        boxBlurT_4(scl, tcl, w, h, r);
     }
-    static void boxBlurH_4 (float [,] scl, ref float [,] tcl, int r) {
-        var w = scl.GetLength(0);
-        var h = scl.GetLength(1);
-        var iarr = 1f / (r+r+1);
-        for(var i=0; i<h; i++) {
-            int ti = i*w, li = ti, ri = ti+r;
-            float fv = scl[getX(ti, w), getY(ti, w)], lv = scl[getX(ti+w-1, w), getY(ti+w-1, w)], val = (r+1)*fv;
-            for(var j=0; j<r; j++) val += scl[getX(ti+j, w), getY(ti+j, w)];
-            for(var j=0  ; j<=r ; j++) { val += scl[getX(ri, w), getY(ri++, w)] - fv       ;   tcl[getX(ti, w), getY(ti++, w)] = Mathf.Round(val*iarr); }
-            for(var j=r+1; j<w-r; j++) { val += scl[getX(ri, w), getY(ri++, w)] - scl[getX(li++, w), getY(li, w)];   tcl[getX(ti, w), getY(ti++, w)] = Mathf.Round(val*iarr); }
-            for(var j=w-r; j<w  ; j++) { val += lv        - scl[getX(li, w), getY(li++, w)];   tcl[getX(ti, w), getY(ti++, w)] = Mathf.Round(val*iarr); }
+    static void boxBlurH_4(float[] scl, float[] tcl, int w, int h, int r)
+    {
+        var iarr = 1f / (r + r + 1);
+        for (var i = 0; i < h; i++)
+        {
+            int ti = i * w, li = ti, ri = ti + r;
+            float fv = scl[ti], lv = scl[ti + w - 1], val = (float)(r + 1) * fv;
+            for (var j = 0; j < r; j++) val += scl[ti + j];
+            for (var j = 0; j <= r; j++) { val += scl[ri++] - fv; tcl[ti++] = val * iarr; }
+            for (var j = r + 1; j < w - r; j++) { val += scl[ri++] - scl[li++]; tcl[ti++] = val * iarr; }
+            for (var j = w - r; j < w; j++) { val += lv - scl[li++]; tcl[ti++] = val * iarr; }
         }
     }
-    static void boxBlurT_4 (float [,] scl, ref float [,] tcl, int r) {
-        var w = scl.GetLength(0);
-        var h = scl.GetLength(1);
-        var iarr = 1f / (r+r+1);
-        for(var i=0; i<w; i++) {
-            int ti = i, li = ti, ri = ti+r*w;
-            float fv = scl[getX(ti,w), getY(ti, w)], lv = scl[getX(ti+w*(h-1), w), getY(ti+w*(h-1), w)], val = (r+1)*fv;
-            for(var j=0; j<r; j++) val += scl[getX(ti+j*w, w), getY(ti+j*w, w)];
-            for(var j=0  ; j<=r ; j++) { val += scl[getX(ri, w), getY(ri, w)] - fv     ;  tcl[getX(ti, w), getY(ti, w)] = Mathf.Round(val*iarr);  ri+=w; ti+=w; }
-            for(var j=r+1; j<h-r; j++) { val += scl[getX(ri, w), getY(ri, w)] - scl[getX(li, w), getY(li, w)];  tcl[getX(ti, w), getY(ti, w)] = Mathf.Round(val*iarr);  li+=w; ri+=w; ti+=w; }
-            for(var j=h-r; j<h  ; j++) { val += lv      - scl[getX(li, w), getY(li, w)];  tcl[getX(ti, w), getY(ti, w)] = Mathf.Round(val*iarr);  li+=w; ti+=w; }
+    static void boxBlurT_4(float[] scl, float[] tcl, int w, int h, int r)
+    {
+        var iarr = 1f / (r + r + 1);
+        for (var i = 0; i < w; i++)
+        {
+            int ti = i, li = ti, ri = ti + r * w;
+            float fv = scl[ti], lv = scl[ti + w * (h - 1)], val = (float)(r + 1) * fv;
+            for (var j = 0; j < r; j++) val += scl[ti + j * w];
+            for (var j = 0; j <= r; j++) { val += scl[ri] - fv; tcl[ti] = val * iarr; ri += w; ti += w; }
+            for (var j = r + 1; j < h - r; j++) { val += scl[ri] - scl[li]; tcl[ti] = val * iarr; li += w; ri += w; ti += w; }
+            for (var j = h - r; j < h; j++) { val += lv - scl[li]; tcl[ti] = val * iarr; li += w; ti += w; }
         }
     }
 
