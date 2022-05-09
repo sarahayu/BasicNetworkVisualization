@@ -6,23 +6,27 @@ using UnityEngine;
 public class HeightMap
 {
     TerrainGraphData _graph;
-    float _falloff;
+    float _falloffDistance;
+    AnimationCurve _falloffShapeFunc;
+    AnimationCurve _peakHeightFunc;
     int _graphWidth;
     int _graphHeight;
 
     float _graphMaxWeight = -1f;
     float _graphMaxSize = -1f;
 
-    public HeightMap(TerrainGraphData graph, float falloff, int graphWidth, int graphHeight)
+    public HeightMap(TerrainGraphData graph, int graphWidth, int graphHeight, float falloffDistance, AnimationCurve falloffShapeFunc, AnimationCurve peakHeightFunc)
     {
         _graph = graph;
-        _falloff = falloff;
         _graphWidth = graphWidth;
         _graphHeight = graphHeight;
+        _falloffDistance = falloffDistance;
+        _falloffShapeFunc = falloffShapeFunc;
+        _peakHeightFunc = peakHeightFunc;
 
         calculateMaxes();
     }
-    
+
     // public float[,] GenerateFromGraph(TerrainGraphData graph)
     // {
     //     var heightMap = new float[_width, _height];
@@ -37,17 +41,81 @@ public class HeightMap
     //     return heightMap;
     // }
 
-    public Texture2D GenerateTexture(int resX, int resY)
+    public Texture2D GenerateTextureHeight(int resX, int resY)
     {
         var colors = new Color[resX * resY];
 
         for (int y = 0; y < resY; y++)
             for (int x = 0; x < resX; x++)
             {
-                colors[y * resX + x] = Color.Lerp(Color.black, Color.white, maxWeightAt((float)x / resX, (float)y / resY));
+                colors[y * resX + x] = Color.Lerp(Color.black, Color.white, maxWeightAt((float)x / (resX - 1), (float)y / (resY - 1)));
             }
 
         var texture = new Texture2D(resX, resY);
+        texture.wrapMode = TextureWrapMode.Clamp;
+        texture.SetPixels(colors);
+        texture.Apply();
+
+        return texture;
+    }
+
+    public Texture2D GenerateTextureAlbedo(int resX, int resY)
+    {
+        var colorBit = new float[resX * resY];
+
+        for (int y = 0; y < resY; y++)
+            for (int x = 0; x < resX; x++)
+            {
+                colorBit[y * resX + x] = 0f;
+            }
+
+
+        foreach (var link in _graph.links)
+        {
+            var source = link.source;
+            var target = link.target;
+            var weight = link.weight;
+            var first = _graph.nodes[source];
+            var second = _graph.nodes[target];
+            int x1 = (int)Mathf.Floor((float)(first.x - 0) / _graphWidth * (resX - 1)), y1 = (int)Mathf.Floor((float)(first.y - 0) / _graphHeight * (resY - 1)), size1 = first.size,
+                x2 = (int)Mathf.Floor((float)(second.x - 0) / _graphWidth * (resX - 1)), y2 = (int)Mathf.Floor((float)(second.y - 0) / _graphHeight * (resY - 1)), size2 = second.size;
+            int dist_x = Math.Abs(x1 - x2), dist_y = Math.Abs(y1 - y2);
+            var dist = Mathf.Sqrt(dist_x * dist_x + dist_y * dist_y);
+            float vx = (x2 - x1) / dist, vy = (y2 - y1) / dist;
+            var minheight = Math.Min(size1, size2);
+            var minridge = ridgeFunc(minheight, minheight, weight, 0);
+            if (dist_x > dist_y)
+            {
+                for (var i = 0; i < dist_x; i++)
+                {
+                    int dx = vx > 0 ? i : -i, dy = (int)Mathf.Floor((float)(y2 - y1) / dist_x * i);
+                    colorBit[(y1 + dy) * resX + x1 + dx] = 1f;
+                }
+            }
+            else
+            {
+                for (var i = 0; i < dist_y; i++)
+                {
+                    int dx = (int)Mathf.Floor((float)(x2 - x1) / dist_y * i), dy = vy > 0 ? i : -i;
+                    colorBit[(y1 + dy) * resX + x1 + dx] = 1f;
+                }
+            }
+        }
+        
+        float[] res = new float[resX * resX];
+            
+        MathUtil.gaussBlur_4(colorBit, res, resX, resY, 2);
+        
+        var colors = new Color[resX * resY];
+
+        for (int y = 0; y < resY; y++)
+            for (int x = 0; x < resX; x++)
+            {
+                colors[y * resX + x] = Color.Lerp(Color.black, Color.white, res[y * resY + x]);
+            }
+
+        var texture = new Texture2D(resX, resY);
+        texture.wrapMode = TextureWrapMode.Clamp;
         texture.SetPixels(colors);
         texture.Apply();
 
@@ -58,19 +126,21 @@ public class HeightMap
     {
         foreach (var link in _graph.links)
             if (link.weight > _graphMaxWeight) _graphMaxWeight = link.weight;
-            
+
         foreach (var node in _graph.nodes)
             if (node.size > _graphMaxSize) _graphMaxSize = node.size;
     }
 
     float ridgeFunc(float height1, float height2, float weight, float offset)
     {
-        return Mathf.Max(0.01f, Mathf.Lerp(0.25f, 1, (MathUtil.clerp((height1 - 1) / (_graphMaxSize - 1), (height2 - 1) / (_graphMaxSize - 1), Mathf.Lerp(0, 0.5f, 1 - (weight - 1) / (_graphMaxWeight - 1)), offset))));
+        float lerpedHeight1 = _peakHeightFunc.Evaluate((height1 - 1) / (_graphMaxSize - 1));
+        float lerpedHeight2 = _peakHeightFunc.Evaluate((height2 - 1) / (_graphMaxSize - 1));
+        return Mathf.Max(0.01f, Mathf.Lerp(0, 1, (MathUtil.clerp(lerpedHeight1, lerpedHeight2, Mathf.Lerp(0, 0.5f, 1 - (weight - 1) / (_graphMaxWeight - 1)), offset))));
     }
 
     public float maxWeightAt(float ratioX, float ratioY)
     {
-        float x = ratioX * (_graphWidth - 1), y = ratioY * (_graphHeight - 1);
+        float x = ratioX * (_graphWidth), y = ratioY * (_graphHeight);
         var maxWeight = 0f;
         foreach (var link in _graph.links)
         {
@@ -95,20 +165,35 @@ public class HeightMap
             var param = line_dist.param;
             var distline_sq = line_dist.dist_sq;
 
-            var dist1 = Mathf.Pow(MathUtil.distSq(x, y, x1, y1), 0.5f / Mathf.Lerp(1, 3, heightAt1));
-            var dist2 = Mathf.Pow(MathUtil.distSq(x, y, x2, y2), 0.5f / Mathf.Lerp(1, 3, heightAt2));
-            var dist3 = Mathf.Pow(distline_sq, 0.5f / Mathf.Lerp(1, 3, heightAtPoint));
-
-            var relWeight1 = heightAt1 - Mathf.Min(heightAt1, dist1 / (_falloff / Mathf.Lerp(5, 210, Mathf.Pow(Mathf.Max(0, heightAt1 - 0.1f), 2))));
-            var relWeight2 = heightAt2 - Mathf.Min(heightAt2, dist2 / (_falloff / Mathf.Lerp(5, 210, Mathf.Pow(Mathf.Max(0, heightAt2 - 0.1f), 2))));
-            var relWeight3 = heightAtPoint - Mathf.Min(heightAtPoint, dist3 / (_falloff / Mathf.Lerp(5, 210, Mathf.Pow(Mathf.Max(0, heightAtPoint - 0.1f), 2))));
+            float maxHeightPoint = heightAt1;
             float relWeight;
-            if (param < 0) relWeight = relWeight1;
-            else if (param > 1) relWeight = relWeight2;
+            if (param < 0)
+            {
+                var dist = Mathf.Pow(MathUtil.distSq(x, y, x1, y1), 0.5f);
+                relWeight = _falloffShapeFunc.Evaluate(Math.Max(0, 1 - dist / _falloffDistance / maxHeightPoint)) * heightAt1;
+            }
+            else if (param > 1)
+            {
+                var dist = Mathf.Pow(MathUtil.distSq(x, y, x2, y2), 0.5f);
+                relWeight = _falloffShapeFunc.Evaluate(Math.Max(0, 1 - dist / _falloffDistance / maxHeightPoint)) * heightAt2;
+            }
             else
             {
-                relWeight = Math.Max(relWeight1, Math.Max(relWeight2, relWeight3));
+                var dist = Mathf.Pow(distline_sq, 0.5f);
+                relWeight = _falloffShapeFunc.Evaluate(Math.Max(0, 1 - dist / _falloffDistance / maxHeightPoint)) * heightAtPoint;
             }
+
+            if (relWeight > maxWeight) maxWeight = relWeight;
+        }
+        
+        // TODO optimize, only check isolated nodes (nodes without links since they would have been looped above)
+        foreach (var node in _graph.nodes)
+        {
+            int x2 = node.x, y2 = node.y, size2 = node.size;
+
+            var dist = Mathf.Pow(Mathf.Pow(x2 - x, 2) + Mathf.Pow(y2 - y, 2), 0.5f);
+            float maxHeightPoint = ridgeFunc(size2, size2, _graphMaxWeight, 0);
+            float relWeight = _falloffShapeFunc.Evaluate(Math.Max(0, 1 - dist / _falloffDistance / maxHeightPoint)) * maxHeightPoint;
 
             if (relWeight > maxWeight) maxWeight = relWeight;
         }

@@ -134,6 +134,28 @@ public static class MathUtil
     {
         return i / w;
     }
+
+    // https://stackoverflow.com/a/28572551
+    public static void populateSunflower(List<Vector3> points, float radius, int n, int alpha)
+    {
+        int b = (int)Math.Round(alpha * Mathf.Sqrt(n));
+        float phi = (Mathf.Sqrt(5) + 1) / 2;
+
+        for (int k = 1; k <= n; k++)
+        {
+            float r = getSunflowerRad(k, n, b) * radius;
+            float theta = 2 * Mathf.PI * k / Mathf.Pow(phi, 2);
+            points.Add(new Vector3(r * Mathf.Cos(theta), 0, r * Mathf.Sin(theta)));
+        }
+    }
+
+    static float getSunflowerRad(int k, int n, int b)
+    {
+        if (k > n - b)
+            return 1f;
+
+        return Mathf.Sqrt((k - 0.5f) / (n - (b + 1f) / 2f));
+    }
 }
 
 public class LineDistItem

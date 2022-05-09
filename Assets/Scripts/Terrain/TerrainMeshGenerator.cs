@@ -22,6 +22,11 @@ public static class TerrainMeshGenerator
 
     static void PopulateRidgePoints(List<Vertex> points, TerrainGraphData graph, int graphWidth, int graphHeight, int meshWidth, int meshLength, int subdivide)
     {
+        foreach (var node in graph.nodes)
+        {
+            points.Add(new Vertex((float)node.x * (meshWidth - 1) / graphWidth, (float)node.y * (meshLength - 1) / graphHeight));
+        }
+
         foreach (var link in graph.links)
         {
             var source = link.source;
@@ -39,21 +44,35 @@ public static class TerrainMeshGenerator
             // dir = dir / 2;
             float x = x1, y = y1;
 
+            x += (float)dir.x * subdivide;
+            y += (float)dir.y * subdivide;
+
             while (Mathf.Abs(x - x1) < distX && Mathf.Abs(y - y1) < distY)
             {
-                points.Add(new Vertex(x * meshWidth / graphWidth, y * meshLength / graphHeight));
+                points.Add(new Vertex(x * (meshWidth - 1) / graphWidth, y * (meshLength - 1) / graphHeight));
                 x += (float)dir.x * subdivide;
                 y += (float)dir.y * subdivide;
             }
-            points.Add(new Vertex(x2 * meshWidth / graphWidth, y2 * meshLength / graphHeight));
+            // points.Add(new Vertex(x2 * (meshWidth - 1) / graphWidth, y2 * (meshLength - 1) / graphHeight));
         }
+    }
+
+    static void PopulateCirclePoints(List<Vertex> points, int width, int height, int subdivide)
+    {
+        float rad = (Mathf.Max(width, height) - 1) / 2; //Mathf.Sqrt((width - 1) * (width - 1) + (height - 1) * (height - 1)) / 2f;
+        int n = (int)(Mathf.PI * rad * rad) / subdivide;
+        var v3Points = new List<Vector3>();
+        MathUtil.populateSunflower(v3Points, rad, n, 2);
+
+        foreach (var point in v3Points)
+            points.Add(new Vertex(point.x + (width - 1) / 2, point.z + (height - 1) / 2));
     }
 
     public static Mesh GenerateFromGraph(TerrainGraphData graph, int graphWidth, int graphHeight, HeightMap heightMap, float meshHeight, int meshWidth, int meshLength, int subdivide, bool useNormalMap)
     {
         var points = new List<Vertex>();
         
-        PopulateGridPoints(points, meshWidth, meshLength, subdivide);
+        PopulateCirclePoints(points, meshWidth, meshLength, subdivide);
         PopulateRidgePoints(points, graph, graphWidth, graphHeight, meshWidth, meshLength, subdivide);
     
         // Choose triangulator: Incremental, SweepLine or Dwyer.
@@ -108,7 +127,7 @@ public static class TerrainMeshGenerator
         return mesh;
     }
 
-    public static async void FlattenNormals(Mesh mesh)
+    public static void FlattenNormals(Mesh mesh)
     {
         List<Vector3> upNorms = new List<Vector3>(mesh.vertices.Length);
 

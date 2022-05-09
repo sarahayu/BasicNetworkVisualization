@@ -75,6 +75,7 @@ public static class TextureUtil
 
 
         var normalMap = new Texture2D(width, height);
+        normalMap.wrapMode = TextureWrapMode.Clamp;
         normalMap.SetPixels(colColors);
         normalMap.Apply();
         return normalMap;

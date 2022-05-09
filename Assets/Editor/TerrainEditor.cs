@@ -20,6 +20,16 @@ public class TerrainEditor : Editor
             terrain.GenerateTerrainLowQuality();
         }
 
+        if (GUILayout.Button("Generate Line Texture"))
+        {
+            terrain.GenerateTerrainTextureAlbedo();
+        }
+
+        if (GUILayout.Button("Generate Height Map Texture"))
+        {
+            terrain.GenerateTerrainTextureHeightMap();
+        }
+
         if (GUILayout.Button("Generate With Normals"))
         {
             terrain.GenerateTerrainSmoothNormals();
