@@ -9,13 +9,14 @@ public class HeightMap
     float _falloffDistance;
     AnimationCurve _falloffShapeFunc;
     AnimationCurve _peakHeightFunc;
+    AnimationCurve _slackFunc;
     int _graphWidth;
     int _graphHeight;
 
     float _graphMaxWeight = -1f;
     float _graphMaxSize = -1f;
 
-    public HeightMap(TerrainGraphData graph, int graphWidth, int graphHeight, float falloffDistance, AnimationCurve falloffShapeFunc, AnimationCurve peakHeightFunc)
+    public HeightMap(TerrainGraphData graph, int graphWidth, int graphHeight, float falloffDistance, AnimationCurve falloffShapeFunc, AnimationCurve peakHeightFunc, AnimationCurve slackFunc)
     {
         _graph = graph;
         _graphWidth = graphWidth;
@@ -23,6 +24,7 @@ public class HeightMap
         _falloffDistance = falloffDistance;
         _falloffShapeFunc = falloffShapeFunc;
         _peakHeightFunc = peakHeightFunc;
+        _slackFunc = slackFunc;
 
         calculateMaxes();
     }
@@ -135,7 +137,7 @@ public class HeightMap
     {
         float lerpedHeight1 = _peakHeightFunc.Evaluate((height1 - 1) / (_graphMaxSize - 1));
         float lerpedHeight2 = _peakHeightFunc.Evaluate((height2 - 1) / (_graphMaxSize - 1));
-        return Mathf.Max(0.01f, Mathf.Lerp(0, 1, (MathUtil.clerp(lerpedHeight1, lerpedHeight2, Mathf.Lerp(0, 0.5f, 1 - (weight - 1) / (_graphMaxWeight - 1)), offset))));
+        return Mathf.Max(0.01f, Mathf.Lerp(0, 1, (MathUtil.clerp(lerpedHeight1, lerpedHeight2, 1 - _slackFunc.Evaluate((weight - 1) / (_graphMaxWeight - 1)), offset))));
     }
 
     public float maxWeightAt(float ratioX, float ratioY)

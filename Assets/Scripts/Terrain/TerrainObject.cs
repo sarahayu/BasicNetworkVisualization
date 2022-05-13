@@ -6,8 +6,8 @@ using TMPro;
 public class TerrainObject : MonoBehaviour
 {
     const int GRAPH_AREA_LEN = 81;
-    const int TEX_RES_NORMAL = 720;
-    const int TEX_RES_ALBEDO = 1280;
+    const int TEX_RES_NORMAL = 360;
+    const int TEX_RES_ALBEDO = 360;
 
     public TextAsset networkJsonFile;
     // public GameObject nodePrefab;
@@ -49,6 +49,7 @@ public class TerrainObject : MonoBehaviour
     public int subdivide = 1;
     public AnimationCurve falloffShapeFunc;
     public AnimationCurve peakHeightFunc;
+    public AnimationCurve slackFunc;
 
     HeightMap _heightMap = null;
     Texture2D _terrainTex = null;
@@ -88,7 +89,8 @@ public class TerrainObject : MonoBehaviour
             graphHeight: (int)Mathf.Sqrt(Mathf.Pow(GRAPH_AREA_LEN, 2) * 2),
             falloffDistance: falloff * GRAPH_AREA_LEN, 
             falloffShapeFunc: falloffShapeFunc,
-            peakHeightFunc: peakHeightFunc
+            peakHeightFunc: peakHeightFunc,
+            slackFunc: slackFunc
         );
 
         meshFilter.sharedMesh = TerrainMeshGenerator.GenerateFromGraph(
