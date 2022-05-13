@@ -5,7 +5,7 @@ using UnityEngine;
 
 public static class TextureUtil
 {
-    public static Texture2D GenerateNormalFromHeight(Texture2D heightMap, float scaleHeight, float meshResWidth)
+    public static Texture2D GenerateNormalFromHeight(Texture2D heightMap, float scaleHeight, float meshRealWidth)
     {
         int width = heightMap.width, height = heightMap.height;
         var colors = new Vector3[width * height];
@@ -19,25 +19,29 @@ public static class TextureUtil
                  || (x == 0 && y == height - 1)
                  || (x == width - 1 && y == height - 1)
                  || (x == width - 1 && y == 0))
-                    col = new Vector3(0, 0, 1);
-                else if (x == 0 || x == width - 1)
-                    col = new Vector3(
-                        0,
-                        meshResWidth / width / scaleHeight,
-                        heightMap.GetPixelBilinear((float)x / (width - 1), ((float)y - 0.5f) / (height - 1)).r - heightMap.GetPixelBilinear((float)x / (width - 1), ((float)y + 0.5f) / (height - 1)).r
-                    );
-                else if (y == 0 || y == height - 1)
-                    col = new Vector3(
-                        heightMap.GetPixelBilinear(((float)x - 0.5f) / (width - 1), (float)y / (height - 1)).r - heightMap.GetPixelBilinear(((float)x + 0.5f) / (width - 1), (float)y / (height - 1)).r,
-                        meshResWidth / width / scaleHeight,
-                        0
-                    );
+                    col = new Vector3(0, 1, 0);
                 else
-                    col = new Vector3(
-                        heightMap.GetPixelBilinear(((float)x - 0.5f) / (width - 1), (float)y / (height - 1)).r - heightMap.GetPixelBilinear(((float)x + 0.5f) / (width - 1), (float)y / (height - 1)).r,
-                        meshResWidth / width / scaleHeight,
-                        heightMap.GetPixelBilinear((float)x / (width - 1), ((float)y - 0.5f) / (height - 1)).r - heightMap.GetPixelBilinear((float)x / (width - 1), ((float)y + 0.5f) / (height - 1)).r
-                    );
+                {
+                    float vx = 0f, vz = 0f;
+                    if (x == 0 || x == width - 1)
+                    {
+                        vz = heightMap.GetPixelBilinear((float)x / (width - 1), ((float)y - 0.5f) / (height - 1)).r - heightMap.GetPixelBilinear((float)x / (width - 1), ((float)y + 0.5f) / (height - 1)).r;
+                    }
+                    else if (y == 0 || y == height - 1)
+                    {
+                        vx = heightMap.GetPixelBilinear(((float)x - 0.5f) / (width - 1), (float)y / (height - 1)).r - heightMap.GetPixelBilinear(((float)x + 0.5f) / (width - 1), (float)y / (height - 1)).r;
+                    }
+                    else
+                    {
+                        vx = heightMap.GetPixelBilinear(((float)x - 0.5f) / (width - 1), (float)y / (height - 1)).r - heightMap.GetPixelBilinear(((float)x + 0.5f) / (width - 1), (float)y / (height - 1)).r;
+                        vz = heightMap.GetPixelBilinear((float)x / (width - 1), ((float)y - 0.5f) / (height - 1)).r - heightMap.GetPixelBilinear((float)x / (width - 1), ((float)y + 0.5f) / (height - 1)).r;
+                    }
+
+                    float vy = meshRealWidth / width / scaleHeight;
+
+                    col = new Vector3(vx, vy, vz);
+
+                }
                 col.Normalize();
                 colors[ind] = (col + Vector3.one) / 2;
             }

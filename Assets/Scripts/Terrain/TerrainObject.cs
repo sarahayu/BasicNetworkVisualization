@@ -6,8 +6,8 @@ using TMPro;
 public class TerrainObject : MonoBehaviour
 {
     const int GRAPH_AREA_LEN = 81;
-    const int TEX_RES_NORMAL = 360;
-    const int TEX_RES_ALBEDO = 360;
+    const int TEX_RES_NORMAL = 240;
+    const int TEX_RES_ALBEDO = 1280;
 
     public TextAsset networkJsonFile;
     // public GameObject nodePrefab;
@@ -47,9 +47,11 @@ public class TerrainObject : MonoBehaviour
     public float scaleHeight = 50f;
     public float falloff = 1f;
     public int subdivide = 1;
+    public float lineColorIntensity = 0.2f;
     public AnimationCurve falloffShapeFunc;
     public AnimationCurve peakHeightFunc;
     public AnimationCurve slackFunc;
+    public bool slackIsLevel;
 
     HeightMap _heightMap = null;
     Texture2D _terrainTex = null;
@@ -90,7 +92,8 @@ public class TerrainObject : MonoBehaviour
             falloffDistance: falloff * GRAPH_AREA_LEN, 
             falloffShapeFunc: falloffShapeFunc,
             peakHeightFunc: peakHeightFunc,
-            slackFunc: slackFunc
+            slackFunc: slackFunc,
+            slackIsLevel: slackIsLevel
         );
 
         meshFilter.sharedMesh = TerrainMeshGenerator.GenerateFromGraph(
@@ -128,7 +131,7 @@ public class TerrainObject : MonoBehaviour
             GenerateTerrainLowQuality();
         }
 
-        meshRenderer.sharedMaterial.mainTexture = _heightMap.GenerateTextureAlbedo(TEX_RES_ALBEDO, TEX_RES_ALBEDO);
+        meshRenderer.sharedMaterial.mainTexture = _heightMap.GenerateTextureAlbedo(TEX_RES_ALBEDO, TEX_RES_ALBEDO, lineColorIntensity);
     }
 
     public void GenerateTerrainTextureHeightMap()

@@ -12,11 +12,13 @@ public class HeightMap
     AnimationCurve _slackFunc;
     int _graphWidth;
     int _graphHeight;
+    bool _slackIsLevel;
 
     float _graphMaxWeight = -1f;
     float _graphMaxSize = -1f;
 
-    public HeightMap(TerrainGraphData graph, int graphWidth, int graphHeight, float falloffDistance, AnimationCurve falloffShapeFunc, AnimationCurve peakHeightFunc, AnimationCurve slackFunc)
+    public HeightMap(TerrainGraphData graph, int graphWidth, int graphHeight, float falloffDistance, 
+        AnimationCurve falloffShapeFunc, AnimationCurve peakHeightFunc, AnimationCurve slackFunc, bool slackIsLevel)
     {
         _graph = graph;
         _graphWidth = graphWidth;
@@ -25,6 +27,7 @@ public class HeightMap
         _falloffShapeFunc = falloffShapeFunc;
         _peakHeightFunc = peakHeightFunc;
         _slackFunc = slackFunc;
+        _slackIsLevel = slackIsLevel;
 
         calculateMaxes();
     }
@@ -45,12 +48,24 @@ public class HeightMap
 
     public Texture2D GenerateTextureHeight(int resX, int resY)
     {
+        var heightVal = new float[resX * resY];
+
+        for (int y = 0; y < resY; y++)
+            for (int x = 0; x < resX; x++)
+            {
+                heightVal[y * resX + x] = maxWeightAt((float)x / (resX - 1), (float)y / (resY - 1));
+            }
+        
+        float[] res = new float[resX * resX];
+            
+        // MathUtil.gaussBlur_4(heightVal, res, resX, resY, 1);
+        
         var colors = new Color[resX * resY];
 
         for (int y = 0; y < resY; y++)
             for (int x = 0; x < resX; x++)
             {
-                colors[y * resX + x] = Color.Lerp(Color.black, Color.white, maxWeightAt((float)x / (resX - 1), (float)y / (resY - 1)));
+                colors[y * resX + x] = Color.Lerp(Color.black, Color.white, heightVal[y * resY + x]);
             }
 
         var texture = new Texture2D(resX, resY);
@@ -61,7 +76,7 @@ public class HeightMap
         return texture;
     }
 
-    public Texture2D GenerateTextureAlbedo(int resX, int resY)
+    public Texture2D GenerateTextureAlbedo(int resX, int resY, float intensity)
     {
         var colorBit = new float[resX * resY];
 
@@ -91,7 +106,7 @@ public class HeightMap
                 for (var i = 0; i < dist_x; i++)
                 {
                     int dx = vx > 0 ? i : -i, dy = (int)Mathf.Floor((float)(y2 - y1) / dist_x * i);
-                    colorBit[(y1 + dy) * resX + x1 + dx] = 1f;
+                    colorBit[(y1 + dy) * resX + x1 + dx] = intensity;
                 }
             }
             else
@@ -99,14 +114,14 @@ public class HeightMap
                 for (var i = 0; i < dist_y; i++)
                 {
                     int dx = (int)Mathf.Floor((float)(x2 - x1) / dist_y * i), dy = vy > 0 ? i : -i;
-                    colorBit[(y1 + dy) * resX + x1 + dx] = 1f;
+                    colorBit[(y1 + dy) * resX + x1 + dx] = intensity;
                 }
             }
         }
         
         float[] res = new float[resX * resX];
             
-        MathUtil.gaussBlur_4(colorBit, res, resX, resY, 2);
+        MathUtil.gaussBlur_4(colorBit, res, resX, resY, 1);
         
         var colors = new Color[resX * resY];
 
@@ -157,11 +172,15 @@ public class HeightMap
             var len_sq = len_x * len_x + len_y * len_y;
 
             var w = MathUtil.proj_factor(x, y, x1, y1, x2, y2);
-            var minSize = Math.Min(size1, size2);
 
-            var heightAtPoint = Math.Max(0, ridgeFunc(minSize, minSize, weight, Math.Min(1, Math.Max(0, w))));
-            var heightAt1 = ridgeFunc(minSize, minSize, weight, 0);
-            var heightAt2 = ridgeFunc(minSize, minSize, weight, 1);
+            if (_slackIsLevel)
+            {
+                size1 = size2 = Math.Min(size1, size2);
+            }
+
+            var heightAtPoint = Math.Max(0, ridgeFunc(size1, size2, weight, Math.Min(1, Math.Max(0, w))));
+            var heightAt1 = ridgeFunc(size1, size2, weight, 0);
+            var heightAt2 = ridgeFunc(size1, size2, weight, 1);
 
             var line_dist = MathUtil.LineDistSq(x, y, x1, y1, x2, y2);
             var param = line_dist.param;

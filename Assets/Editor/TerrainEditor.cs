@@ -12,7 +12,7 @@ public class TerrainEditor : Editor
 
         if (DrawDefaultInspector() && terrain.autoUpdate)
         {
-            terrain.GenerateTerrainLowQuality();
+            terrain.GenerateTerrainTextureAlbedo();
         }
 
         if (GUILayout.Button("Generate Low Poly"))
