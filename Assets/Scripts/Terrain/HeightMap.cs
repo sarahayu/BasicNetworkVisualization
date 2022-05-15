@@ -76,7 +76,7 @@ public class HeightMap
         return texture;
     }
 
-    public Texture2D GenerateTextureAlbedo(int resX, int resY, float intensity)
+    public Texture2D GenerateTextureLines(int resX, int resY, float intensity)
     {
         var colorBit = new float[resX * resY];
 
@@ -155,6 +155,11 @@ public class HeightMap
         return Mathf.Max(0.01f, Mathf.Lerp(0, 1, (MathUtil.clerp(lerpedHeight1, lerpedHeight2, 1 - _slackFunc.Evaluate((weight - 1) / (_graphMaxWeight - 1)), offset))));
     }
 
+    public float GetRadiusFromNodeWeight(float weight)
+    {
+        return weight / _graphMaxSize * _falloffDistance;
+    }
+
     public float maxWeightAt(float ratioX, float ratioY)
     {
         float x = ratioX * (_graphWidth), y = ratioY * (_graphHeight);
@@ -188,20 +193,21 @@ public class HeightMap
 
             float maxHeightPoint = heightAt1;
             float relWeight;
+            // TODO divide by zero with sizes = 1
             if (param < 0)
             {
                 var dist = Mathf.Pow(MathUtil.distSq(x, y, x1, y1), 0.5f);
-                relWeight = _falloffShapeFunc.Evaluate(Math.Max(0, 1 - dist / _falloffDistance / maxHeightPoint)) * heightAt1;
+                relWeight = _falloffShapeFunc.Evaluate(Math.Max(0, 1 - dist / _falloffDistance * (_graphMaxSize) / (size1))) * heightAt1;
             }
             else if (param > 1)
             {
                 var dist = Mathf.Pow(MathUtil.distSq(x, y, x2, y2), 0.5f);
-                relWeight = _falloffShapeFunc.Evaluate(Math.Max(0, 1 - dist / _falloffDistance / maxHeightPoint)) * heightAt2;
+                relWeight = _falloffShapeFunc.Evaluate(Math.Max(0, 1 - dist / _falloffDistance * (_graphMaxSize) / (size2))) * heightAt2;
             }
             else
             {
                 var dist = Mathf.Pow(distline_sq, 0.5f);
-                relWeight = _falloffShapeFunc.Evaluate(Math.Max(0, 1 - dist / _falloffDistance / maxHeightPoint)) * heightAtPoint;
+                relWeight = _falloffShapeFunc.Evaluate(Math.Max(0, 1 - dist / _falloffDistance * (_graphMaxSize) / (Math.Min(size1, size2)))) * heightAtPoint;
             }
 
             if (relWeight > maxWeight) maxWeight = relWeight;

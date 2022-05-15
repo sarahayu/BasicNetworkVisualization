@@ -22,10 +22,10 @@ public static class TextureUtil
                     col = new Vector3(0, 1, 0);
                 else
                 {
-                    float vx = 0f, vz = 0f;
+                    float vx = 0f, vy = 0f;
                     if (x == 0 || x == width - 1)
                     {
-                        vz = heightMap.GetPixelBilinear((float)x / (width - 1), ((float)y - 0.5f) / (height - 1)).r - heightMap.GetPixelBilinear((float)x / (width - 1), ((float)y + 0.5f) / (height - 1)).r;
+                        vy = heightMap.GetPixelBilinear((float)x / (width - 1), ((float)y - 0.5f) / (height - 1)).r - heightMap.GetPixelBilinear((float)x / (width - 1), ((float)y + 0.5f) / (height - 1)).r;
                     }
                     else if (y == 0 || y == height - 1)
                     {
@@ -34,10 +34,10 @@ public static class TextureUtil
                     else
                     {
                         vx = heightMap.GetPixelBilinear(((float)x - 0.5f) / (width - 1), (float)y / (height - 1)).r - heightMap.GetPixelBilinear(((float)x + 0.5f) / (width - 1), (float)y / (height - 1)).r;
-                        vz = heightMap.GetPixelBilinear((float)x / (width - 1), ((float)y - 0.5f) / (height - 1)).r - heightMap.GetPixelBilinear((float)x / (width - 1), ((float)y + 0.5f) / (height - 1)).r;
+                        vy = heightMap.GetPixelBilinear((float)x / (width - 1), ((float)y - 0.5f) / (height - 1)).r - heightMap.GetPixelBilinear((float)x / (width - 1), ((float)y + 0.5f) / (height - 1)).r;
                     }
 
-                    float vy = meshRealWidth / width / scaleHeight;
+                    float vz = meshRealWidth / width / scaleHeight;
 
                     col = new Vector3(vx, vy, vz);
 
@@ -59,11 +59,11 @@ public static class TextureUtil
             }
 
         float[] res = new float[width * height];
-        MathUtil.gaussBlur_4(r, res, width, height, 2);
+        MathUtil.gaussBlur_4(r, res, width, height, 1);
         Array.Copy(res, r, res.Length);
-        MathUtil.gaussBlur_4(g, res, width, height, 2);
+        MathUtil.gaussBlur_4(g, res, width, height, 1);
         Array.Copy(res, g, res.Length);
-        MathUtil.gaussBlur_4(b, res, width, height, 2);
+        MathUtil.gaussBlur_4(b, res, width, height, 1);
         Array.Copy(res, b, res.Length);
 
         var colColors = new Color[width * height];
@@ -83,5 +83,58 @@ public static class TextureUtil
         normalMap.SetPixels(colColors);
         normalMap.Apply();
         return normalMap;
+    }
+    
+    // need heightmap for converting node weight to height
+    public static Texture2D GenerateNodeColsFromGraph(TerrainGraphData graph, HeightMap heightMap, int resX, int resY)
+    {
+        var colors = new Color[resX * resY];
+        float pixToGraphCoord = graph.width / resX;
+        var randomizedColors = new Color[graph.nodes.Count];
+
+        for (int i = 0; i < graph.nodes.Count; i++)
+        {
+            randomizedColors[i] = UnityEngine.Random.ColorHSV(0f, 1f, 1f, 1f, 0.5f, 1f);
+        }
+
+        for (int y = 0; y < resY; y++)
+            for (int x = 0; x < resX; x++)
+            {
+                float gx = x * pixToGraphCoord, gy = y * pixToGraphCoord;
+
+                Color finalColor = Color.clear;
+
+                int count = 0;
+                foreach (var node in graph.nodes)
+                {
+                    float dx = gx - node.x, dy = gy - node.y;
+                    float distSq = dx * dx + dy * dy;
+                    float rad = heightMap.GetRadiusFromNodeWeight(node.size) * 0.8f, radSq = rad * rad;
+
+                    if (distSq <= radSq)
+                    {
+                        // only take sqrt if we're close enough
+                        float dist = Mathf.Sqrt(distSq);
+                        float alpha = 1 - dist / rad;
+                        var color = randomizedColors[count];
+                        color.a = alpha;
+                        float finalAlph = color.a + finalColor.a * (1 - color.a);
+                        finalColor.r = (color.r * color.a + finalColor.r * finalColor.a * (1 - color.a)) / finalAlph;
+                        finalColor.g = (color.g * color.a + finalColor.g * finalColor.a * (1 - color.a)) / finalAlph;
+                        finalColor.b = (color.b * color.a + finalColor.b * finalColor.a * (1 - color.a)) / finalAlph;
+                        finalColor.a = finalAlph;
+                    }
+
+                    count++;
+                }
+
+                colors[y * resX + x] = finalColor;
+            }
+
+        var nodeColsTex = new Texture2D(resX, resY);
+        nodeColsTex.wrapMode = TextureWrapMode.Clamp;
+        nodeColsTex.SetPixels(colors);
+        nodeColsTex.Apply();
+        return nodeColsTex;
     }
 }

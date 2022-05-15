@@ -3,10 +3,11 @@ Shader "Custom/Lambert"
     Properties
     {
         _Color ("Color", Color) = (1,1,1,1)
-        _MainTex ("Albedo (RGB)", 2D) = "white" {}
+        _LineTex ("Albedo (RGB)", 2D) = "black" {}
+        _NodeColTex ("Node Colors (RGBA)", 2D) = "black" {}
         // _Glossiness ("Smoothness", Range(0,1)) = 0.0
         // _Metallic ("Metallic", Range(0,1)) = 0.0
-        _Levels("Levels", Float) = 10.0
+        _NumLevels("Num Levels", Float) = 10.0
         _HeightMap("Height Map", 2D) = "black" {}
         [Normal] _BumpMap("Normal Map", 2D) = "bump" {}
     }
@@ -22,22 +23,22 @@ Shader "Custom/Lambert"
         // Use shader model 3.0 target, to get nicer looking lighting
         #pragma target 3.0
 
-        sampler2D _MainTex;
-        float4 _MainTex_TexelSize;
-        sampler2D _BumpMap;
+        fixed4 _Color;
+        sampler2D _LineTex;
+        sampler2D _NodeColTex;
         sampler2D _HeightMap;
-        float _Levels;
+        sampler2D _BumpMap; 
 
-        float maxHeight;
-        float useHeightMap;
+        float _NumLevels;
+        float _MaxHeight;
+        float _CurvatureRadius;
+        int _UseHeightMap;
 
         struct Input
         {
-            float2 uv_MainTex;
+            float2 uv_LineTex;
             float3 worldPos;
         };
-
-        fixed4 _Color;
 
         // Add instancing support for this shader. You need to check 'Enable Instancing' on materials that use the shader.
         // See https://docs.unity3d.com/Manual/GPUInstancing.html for more information about instancing.
@@ -51,22 +52,29 @@ Shader "Custom/Lambert"
             return saturate((value - a) / (b - a));
         }
 
+        float getSphericalHeight(float3 worldPos)
+        {
+            float3 ray = worldPos - float3(0, -_CurvatureRadius, 0);
+            return length(ray) - _CurvatureRadius;
+        }
+
         void surf (Input IN, inout SurfaceOutput o)
         {
             // Albedo comes from a texture tinted by color
-            fixed4 c = tex2D (_MainTex, IN.uv_MainTex);
+            fixed4 linkLineCol = tex2D (_LineTex, IN.uv_LineTex);
+            fixed4 nodeCol = tex2D (_NodeColTex, IN.uv_LineTex);
             float stepFactor;
-            if (useHeightMap == 1
-                && IN.uv_MainTex.x <= _MainTex_TexelSize.z && IN.uv_MainTex.y <= _MainTex_TexelSize.w
-                && IN.uv_MainTex.x >= 0 && IN.uv_MainTex.y >= 0)
-                stepFactor = tex2D (_HeightMap, IN.uv_MainTex);
+            if (_UseHeightMap == 1)
+                stepFactor = tex2D (_HeightMap, IN.uv_LineTex);
             else
-                stepFactor = inverseLerp(0, maxHeight + 0.01, IN.worldPos.y);
-            float modds = fmod(stepFactor, 1.0 / _Levels);
-            stepFactor += -modds + ceil(modds * _Levels) / _Levels;
-            o.Albedo = 1 - (1 - _Color) * (1 - (stepFactor + c.rgb));
-            o.Normal = tex2D(_BumpMap, IN.uv_MainTex);
-            o.Alpha = c.a;
+                stepFactor = inverseLerp(0, _MaxHeight + 0.01, getSphericalHeight(IN.worldPos));
+            float modds = fmod(stepFactor, 1.0 / _NumLevels);
+            stepFactor += -modds + ceil(modds * _NumLevels) / _NumLevels;
+            stepFactor *= 0.7;
+            fixed4 nodeColAndBg = fixed4(_Color.rgb * (1 - nodeCol.a) + nodeCol.rgb * nodeCol.a, 1);
+            o.Albedo = 1 - (1 - nodeColAndBg) * (1 - (stepFactor + linkLineCol.rgb));
+            o.Normal = tex2D(_BumpMap, IN.uv_LineTex);
+            o.Alpha = linkLineCol.a;
         }
         ENDCG
     }

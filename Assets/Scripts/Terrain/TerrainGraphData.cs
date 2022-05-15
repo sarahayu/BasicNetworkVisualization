@@ -8,12 +8,16 @@ public class TerrainGraphData
 {
     public List<TerrainNodeData> nodes;
     public List<TerrainLinkData> links;
+    public float width;
+    public float height;
 
     public static TerrainGraphData CreateFromJSONData(JSONNetworkData json, float width, float height)
     {
         TerrainGraphData graphData = new TerrainGraphData();
         graphData.nodes = new List<TerrainNodeData>();
         graphData.links = new List<TerrainLinkData>();
+        graphData.width = width;
+        graphData.height = height;
 
         // keeps track of group sizes
         Dictionary<int, int> groupSizes = new Dictionary<int, int>();

@@ -12,7 +12,7 @@ public class TerrainEditor : Editor
 
         if (DrawDefaultInspector() && terrain.autoUpdate)
         {
-            terrain.GenerateTerrainTextureAlbedo();
+            terrain.GenerateTerrainTextureLines();
         }
 
         if (GUILayout.Button("Generate Low Poly"))
@@ -20,19 +20,29 @@ public class TerrainEditor : Editor
             terrain.GenerateTerrainLowQuality();
         }
 
-        if (GUILayout.Button("Generate Line Texture"))
+        if (GUILayout.Button("Toggle Line Texture"))
         {
-            terrain.GenerateTerrainTextureAlbedo();
+            terrain.ToggleAlbedoLines();
         }
 
-        if (GUILayout.Button("Generate Height Map Texture"))
+        if (GUILayout.Button("Toggle Height Map Texture"))
         {
-            terrain.GenerateTerrainTextureHeightMap();
+            terrain.ToggleHeightMap();
         }
 
-        if (GUILayout.Button("Generate With Normals"))
+        if (GUILayout.Button("Toggle Normals"))
         {
-            terrain.GenerateTerrainSmoothNormals();
+            terrain.ToggleNormalMap();
+        }
+
+        if (GUILayout.Button("Toggle Node Colors"))
+        {
+            terrain.ToggleNodeColors();
+        }
+
+        if (GUILayout.Button("Reset"))
+        {
+            terrain.Reset();
         }
     }
 }
