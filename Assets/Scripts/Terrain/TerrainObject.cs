@@ -91,11 +91,8 @@ public class TerrainObject : MonoBehaviour
         texFlat.SetPixels(colFlat);
         texFlat.Apply();
         meshRenderer.sharedMaterial.SetTexture("_LineTex", texFlat);
-        meshRenderer.sharedMaterial.SetTexture("_BumpMap", null);
-        meshRenderer.sharedMaterial.SetTexture("_HeightMap", null);
         meshRenderer.sharedMaterial.SetFloat("_MaxHeight", scaleHeight);
         meshRenderer.sharedMaterial.SetFloat("_CurvatureRadius", curvatureRadius);
-        meshRenderer.sharedMaterial.SetInt("_UseHeightMap", 0);
     }
 
     public void ToggleAlbedoLines()
@@ -240,7 +237,9 @@ public class TerrainObject : MonoBehaviour
         meshRenderer.sharedMaterial.SetTexture("_LineTex", null);
         meshRenderer.sharedMaterial.SetTexture("_BumpMap", null);
         meshRenderer.sharedMaterial.SetTexture("_HeightMap", null);
+        meshRenderer.sharedMaterial.SetTexture("_NodeColTex", null);
         meshRenderer.sharedMaterial.SetFloat("_MaxHeight", scaleHeight);
+        meshRenderer.sharedMaterial.SetFloat("_CurvatureRadius", curvatureRadius);
         meshRenderer.sharedMaterial.SetInt("_UseHeightMap", 0);
     }
 }
