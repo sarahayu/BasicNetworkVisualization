@@ -73,7 +73,7 @@ Shader "Custom/Lambert"
             stepFactor *= 0.7;
             fixed4 nodeColAndBg = fixed4(_Color.rgb * (1 - nodeCol.a) + nodeCol.rgb * nodeCol.a, 1);
             o.Albedo = 1 - (1 - nodeColAndBg) * (1 - (stepFactor + linkLineCol.rgb));
-            o.Normal = tex2D(_BumpMap, IN.uv_LineTex);
+            o.Normal = UnpackNormal (tex2D (_BumpMap, IN.uv_LineTex));
             o.Alpha = linkLineCol.a;
         }
         ENDCG

@@ -46,5 +46,5 @@ Material:
     - _Metallic: 0
     - _NumLevels: 10
     m_Colors:
-    - _Color: {r: 0.38679248, g: 0.38679248, b: 0.38679248, a: 1}
+    - _Color: {r: 0.3584906, g: 0.3584906, b: 0.3584906, a: 1}
   m_BuildTextureStacks: []
