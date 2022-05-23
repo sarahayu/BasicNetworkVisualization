@@ -51,7 +51,7 @@ public class TerrainObject : MonoBehaviour
     public AnimationCurve falloffShapeFunc;
     public AnimationCurve peakHeightFunc;
     public AnimationCurve slackFunc;
-    public bool slackIsLevel;
+    /* public */ bool slackIsLevel;         // obsolete field, may remove later
     public float curvatureRadius = 100f;
 
     JSONNetworkData _data;

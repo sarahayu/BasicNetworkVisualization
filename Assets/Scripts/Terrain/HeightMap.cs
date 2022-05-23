@@ -12,7 +12,7 @@ public class HeightMap
     AnimationCurve _slackFunc;
     int _graphWidth;
     int _graphHeight;
-    bool _slackIsLevel;
+    bool _slackIsLevel;         // obsolete field, may remove later
 
     float _graphMaxWeight = -1f;
     float _graphMaxSize = -1f;
@@ -148,16 +148,17 @@ public class HeightMap
             if (node.size > _graphMaxSize) _graphMaxSize = node.size;
     }
 
-    float ridgeFunc(float height1, float height2, float weight, float offset)
+    float ridgeFunc(float size1, float size2, float weight, float offset)
     {
-        float lerpedHeight1 = _peakHeightFunc.Evaluate((height1 - 1) / (_graphMaxSize - 1));
-        float lerpedHeight2 = _peakHeightFunc.Evaluate((height2 - 1) / (_graphMaxSize - 1));
-        return Mathf.Max(0.01f, Mathf.Lerp(0, 1, (MathUtil.clerp(lerpedHeight1, lerpedHeight2, 1 - _slackFunc.Evaluate((weight - 1) / (_graphMaxWeight - 1)), offset))));
+        float lerpedHeight1 = _peakHeightFunc.Evaluate((size1 - 1) / (_graphMaxSize - 1));
+        float lerpedHeight2 = _peakHeightFunc.Evaluate((size2 - 1) / (_graphMaxSize - 1));
+        float relWeight = weight / (size1 * size2);
+        return Mathf.Max(0.01f, Mathf.Lerp(0, 1, (MathUtil.clerp(lerpedHeight1, lerpedHeight2, 1 - _slackFunc.Evaluate(relWeight), offset))));
     }
 
-    public float GetRadiusFromNodeWeight(float weight)
+    public float GetRadiusFromNodeSize(float size)
     {
-        return weight / _graphMaxSize * _falloffDistance;
+        return size / _graphMaxSize * _falloffDistance;
     }
 
     public float maxWeightAt(float ratioX, float ratioY)

@@ -105,7 +105,7 @@ public class TerrainGraphData
         {
             // unhash key to get idxs of source and target groups
             int sourceIdx = idxsAndWeight.Key / 1000, targetIdx = idxsAndWeight.Key % 1000;
-            float weight = Mathf.Min(groupSizes[sourceIdx], groupSizes[targetIdx]) * 100 / idxsAndWeight.Value;
+            float weight = idxsAndWeight.Value;
             graphData.links.Add(new TerrainLinkData { source = groupIndToJsonIdx.IndexOf(sourceIdx), target = groupIndToJsonIdx.IndexOf(targetIdx), weight = (int)weight });
         }
 

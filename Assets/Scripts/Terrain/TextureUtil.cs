@@ -109,7 +109,7 @@ public static class TextureUtil
                 {
                     float dx = gx - node.x, dy = gy - node.y;
                     float distSq = dx * dx + dy * dy;
-                    float rad = heightMap.GetRadiusFromNodeWeight(node.size) * 0.8f, radSq = rad * rad;
+                    float rad = heightMap.GetRadiusFromNodeSize(node.size) * 0.8f, radSq = rad * rad;
 
                     if (distSq <= radSq)
                     {
