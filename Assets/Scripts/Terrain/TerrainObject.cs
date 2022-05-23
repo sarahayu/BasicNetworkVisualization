@@ -126,7 +126,7 @@ public class TerrainObject : MonoBehaviour
         if (meshRenderer.sharedMaterial.GetTexture("_BumpMap") == null)
         {
             GenerateTerrainSmoothNormals();
-            TerrainMeshGenerator.FlattenNormals(meshFilter.sharedMesh);
+            TerrainMeshGenerator.FlattenNormals(meshFilter.sharedMesh, new Vector3(0, -curvatureRadius, 0));
             meshRenderer.sharedMaterial.SetTexture("_BumpMap", _normalTex);
         }
         else

@@ -139,15 +139,24 @@ public static class TerrainMeshGenerator
         mesh.SetUVs(0, uvs);
 
         if (useNormalMap)
-            FlattenNormals(mesh);
+            FlattenNormals(mesh, vecOrigin);
         else
             mesh.RecalculateNormals();
         return mesh;
     }
 
-    public static void FlattenNormals(Mesh mesh)
+    public static void FlattenNormals(Mesh mesh, Vector3 origin)
     {
-        mesh.SetNormals(Enumerable.Repeat(Vector3.up, mesh.vertices.Length).ToList());
+        List<Vector3> normals = new List<Vector3>(mesh.vertices.Length);
+
+        foreach (var vert in mesh.vertices)
+        {
+            var normal = vert - origin;
+            normal.Normalize();
+            normals.Add(normal);
+        }
+        mesh.SetNormals(normals);
+        // mesh.SetNormals(Enumerable.Repeat(Vector3.up, mesh.vertices.Length).ToList());
     }
 
     public static Mesh GenerateFromHeights(float [,] heightMap)

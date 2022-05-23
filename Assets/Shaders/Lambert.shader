@@ -63,15 +63,18 @@ Shader "Custom/Lambert"
             // Albedo comes from a texture tinted by color
             fixed4 linkLineCol = tex2D (_LineTex, IN.uv_LineTex);
             fixed4 nodeCol = tex2D (_NodeColTex, IN.uv_LineTex);
-            float stepFactor;
+            float heightFactor;
             if (_UseHeightMap == 1)
-                stepFactor = tex2D (_HeightMap, IN.uv_LineTex);
+                heightFactor = tex2D (_HeightMap, IN.uv_LineTex);
             else
-                stepFactor = inverseLerp(0, _MaxHeight + 0.01, getSphericalHeight(IN.worldPos));
-            float modds = fmod(stepFactor, 1.0 / _NumLevels);
-            stepFactor += -modds + ceil(modds * _NumLevels) / _NumLevels;
+                heightFactor = inverseLerp(0, _MaxHeight + 0.01, getSphericalHeight(IN.worldPos));
+            float modds = fmod(heightFactor, 1.0 / _NumLevels);
+            float stepFactor = heightFactor - modds + ceil(modds * _NumLevels) / _NumLevels;
+            // lower whiteness intensity by multiplying contour color by 0.7
             stepFactor *= 0.7;
+            // combine background color and node color texture
             fixed4 nodeColAndBg = fixed4(_Color.rgb * (1 - nodeCol.a) + nodeCol.rgb * nodeCol.a, 1);
+            // use node colors and background as base colors, then screen with contour line texture and link lines
             o.Albedo = 1 - (1 - nodeColAndBg) * (1 - (stepFactor + linkLineCol.rgb));
             o.Normal = UnpackNormal (tex2D (_BumpMap, IN.uv_LineTex));
             o.Alpha = linkLineCol.a;
