@@ -25,8 +25,8 @@ public class TerrainGraphData
         Dictionary<int, int> groupDegs = new Dictionary<int, int>();
         // keeps track of index in groupSizes mapped to actual idx in json data
         List<int> groupIndToJsonIdx = new List<int>();
-        // bookkeep number of links between any two given groups to determine intergroup link weights
-        Dictionary<int, int> linkWeights = new Dictionary<int, int>();
+        // keep tack of group links; Item1 = group1 index, Item2 = group2 index, Item3 = weight
+        Dictionary<string, Tuple<int, int, int>> groupLinks = new Dictionary<string, Tuple<int, int, int>>();
 
         // loop through json nodes and keep track of the groups made by leaf nodes
         foreach (var node in json.nodes)
@@ -37,7 +37,7 @@ public class TerrainGraphData
             }
         }
 
-        // loop through json links and bookkeep them to linkWeights, also find out group degrees
+        // loop through json links and bookkeep them to groupLinks, also find out group degrees
         foreach (var link in json.links)
         {
             // check if the ancestor of the one of the link's source nodes is inside our groupSizes
@@ -57,14 +57,14 @@ public class TerrainGraphData
                         group2 = temp;
                     }
 
-                    // create hash of two group idxs in order to make sure links between two groups always have the same entry in linkWeights
-                    int indID = group2 * 1000 + group1;
+                    // create hash of two group idxs in order to make sure links between two groups always have the same entry in groupLinks
+                    var hash = json.nodes[group1].label.ToString() + "-" + json.nodes[group2].label.ToString();
 
                     // increment link weight
-                    if (!linkWeights.ContainsKey(indID))
-                        linkWeights.Add(indID, 1);
+                    if (!groupLinks.ContainsKey(hash))
+                        groupLinks.Add(hash, Tuple.Create(group1, group2, 1));
                     else
-                        linkWeights[indID]++;
+                        groupLinks[hash] = Tuple.Create(group1, group2, groupLinks[hash].Item3 + 1);
                         
                     // increment group degrees
                     if (!groupDegs.ContainsKey(group1))
@@ -100,13 +100,17 @@ public class TerrainGraphData
             graphData.nodes[i].y = (int)(points[i].z + rad);
         }
 
-        // loop through linkWeights and create graph data links
-        foreach (var idxsAndWeight in linkWeights)
+        // loop through groupLinks and create graph data links
+        foreach (var groupLink in groupLinks.Values)
         {
             // unhash key to get idxs of source and target groups
-            int sourceIdx = idxsAndWeight.Key / 1000, targetIdx = idxsAndWeight.Key % 1000;
-            float weight = idxsAndWeight.Value;
-            graphData.links.Add(new TerrainLinkData { source = groupIndToJsonIdx.IndexOf(sourceIdx), target = groupIndToJsonIdx.IndexOf(targetIdx), weight = (int)weight });
+            int sourceIdx = groupLink.Item1, targetIdx = groupLink.Item2;
+            float weight = groupLink.Item3;
+            graphData.links.Add(new TerrainLinkData { 
+                source = groupIndToJsonIdx.IndexOf(sourceIdx), 
+                target = groupIndToJsonIdx.IndexOf(targetIdx), 
+                weight = (int)weight 
+                });
         }
 
         return graphData;

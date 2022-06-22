@@ -94,8 +94,15 @@ public class HeightMap
             var weight = link.weight;
             var first = _graph.nodes[source];
             var second = _graph.nodes[target];
-            int x1 = (int)Mathf.Floor((float)(first.x - 0) / _graphWidth * (resX - 1)), y1 = (int)Mathf.Floor((float)(first.y - 0) / _graphHeight * (resY - 1)), size1 = first.size,
-                x2 = (int)Mathf.Floor((float)(second.x - 0) / _graphWidth * (resX - 1)), y2 = (int)Mathf.Floor((float)(second.y - 0) / _graphHeight * (resY - 1)), size2 = second.size;
+
+            int x1 = (int)Mathf.Floor((float)(first.x - 0) / _graphWidth * (resX - 1)), 
+                y1 = (int)Mathf.Floor((float)(first.y - 0) / _graphHeight * (resY - 1)), 
+                size1 = first.size,
+
+                x2 = (int)Mathf.Floor((float)(second.x - 0) / _graphWidth * (resX - 1)), 
+                y2 = (int)Mathf.Floor((float)(second.y - 0) / _graphHeight * (resY - 1)), 
+                size2 = second.size;
+                
             int dist_x = Math.Abs(x1 - x2), dist_y = Math.Abs(y1 - y2);
             var dist = Mathf.Sqrt(dist_x * dist_x + dist_y * dist_y);
             float vx = (x2 - x1) / dist, vy = (y2 - y1) / dist;

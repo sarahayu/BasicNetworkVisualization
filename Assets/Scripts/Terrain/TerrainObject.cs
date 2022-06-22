@@ -2,6 +2,7 @@ using System.Linq;
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
+using UnityEngine.Events;
 using TMPro;
 
 public class TerrainObject : MonoBehaviour
@@ -61,134 +62,32 @@ public class TerrainObject : MonoBehaviour
     Texture2D _heightTex = null;
     Texture2D _normalTex = null;
     Texture2D _nodeColTex = null;
+    bool _rightGripPressed = false;
 
-    public void Awake()
+    UnityEvent _selectionEvent;
+
+    public void Start()
     {
-        print("Awaken");
+        _selectionEvent = new UnityEvent();
+        _selectionEvent.AddListener(OnTraceActivate);
+
+        Reset();
+        ToggleAlbedoLines();
+        ToggleHeightMap();
+        ToggleNormalMap();
+        ToggleNodeColors();
     }
 
-    public void GenerateTerrainLowQuality()
+    public void ControllerTriggerPress()
     {
-        meshFilter.sharedMesh = TerrainMeshGenerator.GenerateFromGraph(
-            graph: _graph,
-            graphWidth: (int)Mathf.Sqrt(Mathf.Pow(GRAPH_AREA_LEN, 2) * 2), 
-            graphHeight: (int)Mathf.Sqrt(Mathf.Pow(GRAPH_AREA_LEN, 2) * 2),
-            heightMap: _heightMap, 
-            meshHeight: scaleHeight, 
-            meshWidth: (int)Mathf.Sqrt(Mathf.Pow(GRAPH_AREA_LEN, 2) * 2), 
-            meshLength: (int)Mathf.Sqrt(Mathf.Pow(GRAPH_AREA_LEN, 2) * 2),
-            subdivide: subdivide,
-            radius: curvatureRadius,
-            useNormalMap: false
-        );
+        _rightGripPressed = true;
 
-        var colFlat = new Color[TEX_RES_NORMAL * TEX_RES_NORMAL];
-        for (int y = 0; y < TEX_RES_NORMAL; y++)
-            for (int x = 0; x < TEX_RES_NORMAL; x++)
-                colFlat[y * TEX_RES_NORMAL + x] = Color.black;
-
-        var texFlat = new Texture2D(TEX_RES_NORMAL, TEX_RES_NORMAL);
-        texFlat.SetPixels(colFlat);
-        texFlat.Apply();
-        meshRenderer.sharedMaterial.SetTexture("_LineTex", texFlat);
-        meshRenderer.sharedMaterial.SetFloat("_MaxHeight", scaleHeight);
-        meshRenderer.sharedMaterial.SetFloat("_CurvatureRadius", curvatureRadius);
+        _selectionEvent.Invoke();
     }
 
-    public void ToggleAlbedoLines()
+    public void ControllerTriggerRelease()
     {
-        if (meshRenderer.sharedMaterial.GetTexture("_LineTex") == null)
-        {
-            GenerateTerrainTextureLines();
-            meshRenderer.sharedMaterial.SetTexture("_LineTex", _lineTex);
-        }
-        else
-            meshRenderer.sharedMaterial.SetTexture("_LineTex", null);
-    }
-
-    public void ToggleHeightMap()
-    {
-        if (meshRenderer.sharedMaterial.GetTexture("_HeightMap") == null)
-        {
-            GenerateTerrainTextureHeightMap();
-            meshRenderer.sharedMaterial.SetTexture("_HeightMap", _heightTex);
-            meshRenderer.sharedMaterial.SetInt("_UseHeightMap", 1);
-        }
-        else
-        {
-            meshRenderer.sharedMaterial.SetTexture("_HeightMap", null);
-            meshRenderer.sharedMaterial.SetInt("_UseHeightMap", 0);
-        }
-    }
-
-    public void ToggleNormalMap()
-    {
-        if (meshRenderer.sharedMaterial.GetTexture("_BumpMap") == null)
-        {
-            GenerateTerrainSmoothNormals();
-            TerrainMeshGenerator.FlattenNormals(meshFilter.sharedMesh, new Vector3(0, -curvatureRadius, 0));
-            meshRenderer.sharedMaterial.SetTexture("_BumpMap", _normalTex);
-        }
-        else
-        {
-            meshFilter.sharedMesh.RecalculateNormals();
-            meshRenderer.sharedMaterial.SetTexture("_BumpMap", null);
-        }
-    }
-
-    public void ToggleNodeColors()
-    {
-        if (meshRenderer.sharedMaterial.GetTexture("_NodeColTex") == null)
-        {
-            GenerateNodeColors();
-            meshRenderer.sharedMaterial.SetTexture("_NodeColTex", _nodeColTex);
-        }
-        else
-        {
-            meshRenderer.sharedMaterial.SetTexture("_NodeColTex", null);
-        }
-    }
-
-    public void GenerateTerrainTextureLines()
-    {
-        if (_heightMap == null)
-            GenerateTerrainLowQuality();
-
-        // regenerate line tex every time, it's not computationally expensive and we might change line opacity often
-        // if (_lineTex == null)
-        _lineTex = _heightMap.GenerateTextureLines(TEX_RES_ALBEDO, TEX_RES_ALBEDO, lineColorIntensity);
-    }
-
-    void GenerateTerrainTextureHeightMap()
-    {
-        if (_heightMap == null)
-            GenerateTerrainLowQuality();
-
-        if (_heightTex == null)
-            _heightTex = _heightMap.GenerateTextureHeight(TEX_RES_NORMAL, TEX_RES_NORMAL);
-    }
-
-    void GenerateTerrainSmoothNormals()
-    {
-        if (_heightMap == null)
-            GenerateTerrainLowQuality();
-
-        if (_heightTex == null)
-            GenerateTerrainTextureHeightMap();
-
-        if (_normalTex == null)
-            _normalTex = TextureUtil.GenerateNormalFromHeight(_heightTex, scaleHeight, GRAPH_AREA_LEN);
-
-    }
-
-    void GenerateNodeColors()
-    {
-        if (_heightMap == null)
-            GenerateTerrainLowQuality();
-
-        if (_nodeColTex == null)
-            _nodeColTex = TextureUtil.GenerateNodeColsFromGraph(_graph, _heightMap, TEX_RES_ALBEDO, TEX_RES_ALBEDO);
-
+        _rightGripPressed = false;
     }
 
     public void Reset()
@@ -234,12 +133,160 @@ public class TerrainObject : MonoBehaviour
         _heightTex = null;
         _normalTex = null;
         _nodeColTex = null;
-        meshRenderer.sharedMaterial.SetTexture("_LineTex", null);
-        meshRenderer.sharedMaterial.SetTexture("_BumpMap", null);
-        meshRenderer.sharedMaterial.SetTexture("_HeightMap", null);
-        meshRenderer.sharedMaterial.SetTexture("_NodeColTex", null);
-        meshRenderer.sharedMaterial.SetFloat("_MaxHeight", scaleHeight);
-        meshRenderer.sharedMaterial.SetFloat("_CurvatureRadius", curvatureRadius);
-        meshRenderer.sharedMaterial.SetInt("_UseHeightMap", 0);
+
+        var mMaterial = GetMeshMaterial();
+
+        mMaterial.SetTexture("_LineTex", null);
+        mMaterial.SetTexture("_BumpMap", null);
+        mMaterial.SetTexture("_HeightMap", null);
+        mMaterial.SetTexture("_NodeColTex", null);
+        mMaterial.SetFloat("_MaxHeight", scaleHeight);
+        mMaterial.SetFloat("_CurvatureRadius", curvatureRadius);
+        mMaterial.SetInt("_UseHeightMap", 0);
+    }
+
+    public void GenerateTerrainLowQuality()
+    {
+        meshFilter.sharedMesh = TerrainMeshGenerator.GenerateFromGraph(
+            graph: _graph,
+            graphWidth: (int)Mathf.Sqrt(Mathf.Pow(GRAPH_AREA_LEN, 2) * 2), 
+            graphHeight: (int)Mathf.Sqrt(Mathf.Pow(GRAPH_AREA_LEN, 2) * 2),
+            heightMap: _heightMap, 
+            meshHeight: scaleHeight, 
+            meshWidth: (int)Mathf.Sqrt(Mathf.Pow(GRAPH_AREA_LEN, 2) * 2), 
+            meshLength: (int)Mathf.Sqrt(Mathf.Pow(GRAPH_AREA_LEN, 2) * 2),
+            subdivide: subdivide,
+            radius: curvatureRadius,
+            useNormalMap: false
+        );
+
+        var colFlat = new Color[TEX_RES_NORMAL * TEX_RES_NORMAL];
+        for (int y = 0; y < TEX_RES_NORMAL; y++)
+            for (int x = 0; x < TEX_RES_NORMAL; x++)
+                colFlat[y * TEX_RES_NORMAL + x] = Color.black;
+
+        var texFlat = new Texture2D(TEX_RES_NORMAL, TEX_RES_NORMAL);
+        texFlat.SetPixels(colFlat);
+        texFlat.Apply();
+
+        var mMaterial = GetMeshMaterial();
+
+        mMaterial.SetTexture("_LineTex", texFlat);
+        mMaterial.SetFloat("_MaxHeight", scaleHeight);
+        mMaterial.SetFloat("_CurvatureRadius", curvatureRadius);
+    }
+
+    public void ToggleAlbedoLines()
+    {
+        var mMaterial = GetMeshMaterial();
+
+        if (mMaterial.GetTexture("_LineTex") == null)
+        {
+            GenerateTerrainTextureLines();
+            mMaterial.SetTexture("_LineTex", _lineTex);
+        }
+        else
+            mMaterial.SetTexture("_LineTex", null);
+    }
+
+    public void ToggleHeightMap()
+    {
+        var mMaterial = GetMeshMaterial();
+
+        if (mMaterial.GetTexture("_HeightMap") == null)
+        {
+            GenerateTerrainTextureHeightMap();
+            mMaterial.SetTexture("_HeightMap", _heightTex);
+            mMaterial.SetInt("_UseHeightMap", 1);
+        }
+        else
+        {
+            mMaterial.SetTexture("_HeightMap", null);
+            mMaterial.SetInt("_UseHeightMap", 0);
+        }
+    }
+
+    public void ToggleNormalMap()
+    {
+        var mMaterial = GetMeshMaterial();
+
+        if (mMaterial.GetTexture("_BumpMap") == null)
+        {
+            GenerateTerrainSmoothNormals();
+            MeshUtil.FlattenNormals(meshFilter.sharedMesh, new Vector3(0, -curvatureRadius, 0));
+            mMaterial.SetTexture("_BumpMap", _normalTex);
+        }
+        else
+        {
+            meshFilter.sharedMesh.RecalculateNormals();
+            mMaterial.SetTexture("_BumpMap", null);
+        }
+    }
+
+    public void ToggleNodeColors()
+    {
+        var mMaterial = GetMeshMaterial();
+
+        if (mMaterial.GetTexture("_NodeColTex") == null)
+        {
+            GenerateNodeColors();
+            mMaterial.SetTexture("_NodeColTex", _nodeColTex);
+        }
+        else
+        {
+            mMaterial.SetTexture("_NodeColTex", null);
+        }
+    }
+
+    public void GenerateTerrainTextureLines()
+    {
+        if (_heightMap == null)
+            GenerateTerrainLowQuality();
+
+        // regenerate line tex every time, it's not computationally expensive and we might change line opacity often
+        // if (_lineTex == null)
+        _lineTex = _heightMap.GenerateTextureLines(TEX_RES_ALBEDO, TEX_RES_ALBEDO, lineColorIntensity);
+    }
+
+    void OnTraceActivate()
+    {
+        ToggleAlbedoLines();
+    }
+
+    Material GetMeshMaterial()
+    {
+        return Application.isPlaying ? meshRenderer.material : meshRenderer.sharedMaterial;
+    }
+
+    void GenerateTerrainTextureHeightMap()
+    {
+        if (_heightMap == null)
+            GenerateTerrainLowQuality();
+
+        if (_heightTex == null)
+            _heightTex = _heightMap.GenerateTextureHeight(TEX_RES_NORMAL, TEX_RES_NORMAL);
+    }
+
+    void GenerateTerrainSmoothNormals()
+    {
+        if (_heightMap == null)
+            GenerateTerrainLowQuality();
+
+        if (_heightTex == null)
+            GenerateTerrainTextureHeightMap();
+
+        if (_normalTex == null)
+            _normalTex = TextureUtil.GenerateNormalFromHeight(_heightTex, scaleHeight, GRAPH_AREA_LEN);
+
+    }
+
+    void GenerateNodeColors()
+    {
+        if (_heightMap == null)
+            GenerateTerrainLowQuality();
+
+        if (_nodeColTex == null)
+            _nodeColTex = TextureUtil.GenerateNodeColsFromGraph(_graph, _heightMap, TEX_RES_ALBEDO, TEX_RES_ALBEDO);
+
     }
 }

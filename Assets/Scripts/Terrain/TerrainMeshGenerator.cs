@@ -10,6 +10,25 @@ using TriangleNet.Topology;
 
 public static class TerrainMeshGenerator
 {
+    public static Mesh GenerateFromGraph(TerrainGraphData graph, int graphWidth, int graphHeight, HeightMap heightMap, float meshHeight, int meshWidth, int meshLength, int subdivide, float radius, bool useNormalMap)
+    {
+        var points = new List<Vertex>();
+        
+        PopulateCirclePoints(points, meshWidth, meshLength, subdivide);
+        PopulateRidgePoints(points, graph, graphWidth, graphHeight, meshWidth, meshLength, subdivide);
+    
+        // Choose triangulator: Incremental, SweepLine or Dwyer.
+        var triangulator = new Dwyer();
+
+        // Generate a default mesher.
+        var mesher = new GenericMesher(triangulator);
+        
+        // Generate mesh.
+        var mesh = mesher.Triangulate(points);
+
+        return CreateMeshFromTriangles(mesh.Triangles, heightMap, meshHeight, meshWidth, meshLength, radius, useNormalMap);
+    }
+
     static void PopulateGridPoints(List<Vertex> points, int width, int height, int subdivide)
     {
         for (int y = 0; y < height + subdivide; y += subdivide)
@@ -69,25 +88,6 @@ public static class TerrainMeshGenerator
             points.Add(new Vertex(point.x + (width - 1) / 2, point.z + (height - 1) / 2));
     }
 
-    public static Mesh GenerateFromGraph(TerrainGraphData graph, int graphWidth, int graphHeight, HeightMap heightMap, float meshHeight, int meshWidth, int meshLength, int subdivide, float radius, bool useNormalMap)
-    {
-        var points = new List<Vertex>();
-        
-        PopulateCirclePoints(points, meshWidth, meshLength, subdivide);
-        PopulateRidgePoints(points, graph, graphWidth, graphHeight, meshWidth, meshLength, subdivide);
-    
-        // Choose triangulator: Incremental, SweepLine or Dwyer.
-        var triangulator = new Dwyer();
-
-        // Generate a default mesher.
-        var mesher = new GenericMesher(triangulator);
-        
-        // Generate mesh.
-        var mesh = mesher.Triangulate(points);
-
-        return CreateMeshFromTriangles(mesh.Triangles, heightMap, meshHeight, meshWidth, meshLength, radius, useNormalMap);
-    }
-
     // assume origin to be a point at xz-plane origin minus some y
     static Vector3 flatToRoundCoords(Vector3 flatCoord, Vector3 origin)
     {
@@ -139,64 +139,9 @@ public static class TerrainMeshGenerator
         mesh.SetUVs(0, uvs);
 
         if (useNormalMap)
-            FlattenNormals(mesh, vecOrigin);
+            MeshUtil.FlattenNormals(mesh, vecOrigin);
         else
             mesh.RecalculateNormals();
-        return mesh;
-    }
-
-    public static void FlattenNormals(Mesh mesh, Vector3 origin)
-    {
-        List<Vector3> normals = new List<Vector3>(mesh.vertices.Length);
-
-        foreach (var vert in mesh.vertices)
-        {
-            var normal = vert - origin;
-            normal.Normalize();
-            normals.Add(normal);
-        }
-        mesh.SetNormals(normals);
-        // mesh.SetNormals(Enumerable.Repeat(Vector3.up, mesh.vertices.Length).ToList());
-    }
-
-    public static Mesh GenerateFromHeights(float [,] heightMap)
-    {
-        int width = heightMap.GetLength(0), height = heightMap.GetLength(1);
-
-        var vertices = new Vector3[width * height];
-        var uvs = new Vector2[width * height];
-        var triangles = new int[(width - 1) * (height - 1) * 6];
-
-        float startX = (width - 1) / -2f, startZ = (height - 1) / 2f;
-        int indVert = 0, indTri = 0;
-
-        for (int y = 0; y < height; y++)
-        {
-            for (int x = 0; x < width; x++)
-            {
-                vertices[indVert] = new Vector3(startX + x, heightMap[x, y], startZ - y);
-                uvs[indVert] = new Vector2(x / (float)width, y / (float)height);
-
-                if (x < width - 1 && y < height - 1)
-                {
-                    triangles[indTri++] = indVert;
-                    triangles[indTri++] = indVert + width + 1;
-                    triangles[indTri++] = indVert + width;
-                    
-                    triangles[indTri++] = indVert + width + 1;
-                    triangles[indTri++] = indVert;
-                    triangles[indTri++] = indVert + 1;
-                }
-
-                indVert++;
-            }
-        }
-
-        var mesh = new Mesh();
-        mesh.vertices = vertices;
-        mesh.triangles = triangles;
-        mesh.uv = uvs;
-        mesh.RecalculateNormals();
         return mesh;
     }
 }
