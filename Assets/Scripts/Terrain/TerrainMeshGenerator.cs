@@ -8,14 +8,39 @@ using TriangleNet.Meshing;
 using TriangleNet.Meshing.Algorithm;
 using TriangleNet.Topology;
 
-public static class TerrainMeshGenerator
+public class TerrainMeshGenerator
 {
-    public static Mesh GenerateFromGraph(TerrainGraphData graph, int graphWidth, int graphHeight, HeightMap heightMap, float meshHeight, int meshWidth, int meshLength, int subdivide, float radius, bool useNormalMap)
+    TerrainGraphData _graph;
+    int _graphWidth;
+    int _graphHeight;
+    HeightMap _heightMap;
+    float _meshHeight;
+    int _meshWidth;
+    int _meshLength;
+    int _subdivide;
+    float _radius;
+    bool _useNormalMap; // unused for now
+
+    public TerrainMeshGenerator(TerrainGraphData graph, int graphWidth, int graphHeight, HeightMap heightMap, float meshHeight, int meshWidth, int meshLength, int subdivide, float radius, bool useNormalMap)
+    {
+        _graph = graph;
+        _graphWidth = graphWidth;
+        _graphHeight = graphHeight;
+        _heightMap = heightMap;
+        _meshHeight = meshHeight;
+        _meshWidth = meshWidth;
+        _meshLength = meshLength;
+        _subdivide = subdivide;
+        _radius = radius;
+        _useNormalMap = useNormalMap;
+    }
+
+    public Mesh GenerateFromGraph()
     {
         var points = new List<Vertex>();
         
-        PopulateCirclePoints(points, meshWidth, meshLength, subdivide);
-        PopulateRidgePoints(points, graph, graphWidth, graphHeight, meshWidth, meshLength, subdivide);
+        PopulateCirclePoints(points, _meshWidth, _meshLength, _subdivide);
+        PopulateRidgePoints(points, _graph, _graphWidth, _graphHeight, _meshWidth, _meshLength, _subdivide);
     
         // Choose triangulator: Incremental, SweepLine or Dwyer.
         var triangulator = new Dwyer();
@@ -26,9 +51,10 @@ public static class TerrainMeshGenerator
         // Generate mesh.
         var mesh = mesher.Triangulate(points);
 
-        return CreateMeshFromTriangles(mesh.Triangles, heightMap, meshHeight, meshWidth, meshLength, radius, useNormalMap);
+        return CreateMeshFromTriangles(mesh.Triangles, _heightMap, _meshHeight, _meshWidth, _meshLength, _radius, _useNormalMap);
     }
 
+    // unused for now
     static void PopulateGridPoints(List<Vertex> points, int width, int height, int subdivide)
     {
         for (int y = 0; y < height + subdivide; y += subdivide)
@@ -101,6 +127,21 @@ public static class TerrainMeshGenerator
         ray.y += origin.y;
 
         return ray;
+    }
+
+    public Vector2 LocalToTexPos(Vector3 localPos)
+    {
+        localPos.y += _radius;
+        localPos.Normalize();
+        localPos.x *= _radius / localPos.y;
+        localPos.z *= _radius / localPos.y;
+        float minBoundX = (_meshWidth - 1) / -2f, maxBoundX = (_meshWidth - 1) / 2f,
+            minBoundZ = (_meshLength - 1) / -2f, maxBoundZ = (_meshLength - 1) / 2f;
+        
+        return new Vector2(
+            MathUtil.rlerp(localPos.x, minBoundX, maxBoundX),
+            1 - MathUtil.rlerp(localPos.z, minBoundZ, maxBoundZ)
+            );
     }
     
     static Mesh CreateMeshFromTriangles(ICollection<Triangle> triangles, HeightMap heightMap, float meshHeight, float meshWidth, float meshLength, float radius, bool useNormalMap)

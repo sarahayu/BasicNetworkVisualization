@@ -57,6 +57,12 @@ public static class MathUtil
         // print(j, k);
         return (float)final;
     }
+
+    public static float rlerp(float c, float a, float b)
+    {
+        return (c - a) / (b - a);
+    }
+
     // consider v=(x,y), returns how much along <v2-v1> the projection of v on it is
     public static float proj_factor(float x, float y, float x1, float y1, float x2, float y2)
     {

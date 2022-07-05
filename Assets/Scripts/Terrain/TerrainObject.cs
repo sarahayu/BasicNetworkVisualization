@@ -23,6 +23,9 @@ public class TerrainObject : MonoBehaviour
 
     public MeshFilter meshFilter;
     public MeshRenderer meshRenderer;
+    public MeshCollider meshCollider;
+    public Transform laserBox;
+    // public Transform anchor;
     // int numControllersPressed = 0;
     // Vector3 ogControllerRelPos = Vector3.zero;
     // Vector3 ogControllersPos;
@@ -57,12 +60,16 @@ public class TerrainObject : MonoBehaviour
 
     JSONNetworkData _data;
     TerrainGraphData _graph;
+    TerrainMeshGenerator _meshGenerator;
+    TerrainOutline _terrainOutline;
     HeightMap _heightMap = null;
     Texture2D _lineTex = null;
     Texture2D _heightTex = null;
     Texture2D _normalTex = null;
     Texture2D _nodeColTex = null;
+    Texture2D _outlineTex = null;
     bool _rightGripPressed = false;
+    bool _leftGripPressed = false;
 
     UnityEvent _selectionEvent;
 
@@ -71,6 +78,9 @@ public class TerrainObject : MonoBehaviour
         _selectionEvent = new UnityEvent();
         _selectionEvent.AddListener(OnTraceActivate);
 
+        _outlineTex = new Texture2D(144, 144, TextureFormat.ARGB32, false);
+        _terrainOutline = new TerrainOutline(_outlineTex);
+
         Reset();
         ToggleAlbedoLines();
         ToggleHeightMap();
@@ -78,16 +88,57 @@ public class TerrainObject : MonoBehaviour
         ToggleNodeColors();
     }
 
-    public void ControllerTriggerPress()
+    // public void Update()
+    // {
+    //     Debug.DrawRay(laserBox.position, laserBox.forward * 10, Color.cyan);
+    // }
+
+    public Transform indicator;
+
+    public void ControllerTriggerPressRight()
     {
         _rightGripPressed = true;
-
-        _selectionEvent.Invoke();
     }
 
-    public void ControllerTriggerRelease()
+    public void ControllerTriggerReleaseRight()
     {
         _rightGripPressed = false;
+    }
+
+    public void ControllerTriggerPressleft()
+    {
+        _leftGripPressed = true;
+    }
+
+    public void ControllerTriggerReleaseleft()
+    {
+        _leftGripPressed = false;
+    }
+
+    public void FixedUpdate()
+    {
+        if (_rightGripPressed)
+        {
+            var sourcePos = laserBox.position - laserBox.forward * laserBox.localScale.z / 2;
+            Ray ray = new Ray(sourcePos, laserBox.forward);
+            // Debug.DrawRay(sourcePos, laserBox.forward, Color.green, 2, false);
+            RaycastHit hit;
+
+            if (meshCollider.Raycast(ray, out hit, Mathf.Infinity))
+            {
+                var worldCollPos = sourcePos + laserBox.forward * hit.distance;
+                var localPos = transform.InverseTransformPoint(worldCollPos);
+                var texPos = _meshGenerator.LocalToTexPos(localPos);
+
+                _terrainOutline.AddPointAndUpdate(texPos);
+
+                // _outlineTex.SetPixel((int)(texPos.x * _outlineTex.width), (int)(texPos.y * _outlineTex.height), Color.black);
+                // _outlineTex.Apply();
+
+                // var indicPos = transform.TransformPoint(localPos);
+                // indicator.position = indicPos;
+            }    
+        }
     }
 
     public void Reset()
@@ -128,6 +179,19 @@ public class TerrainObject : MonoBehaviour
             slackFunc: slackFunc,
             slackIsLevel: slackIsLevel
         );
+
+        _meshGenerator = new TerrainMeshGenerator(
+            graph: _graph,
+            graphWidth: (int)Mathf.Sqrt(Mathf.Pow(GRAPH_AREA_LEN, 2) * 2), 
+            graphHeight: (int)Mathf.Sqrt(Mathf.Pow(GRAPH_AREA_LEN, 2) * 2),
+            heightMap: _heightMap, 
+            meshHeight: scaleHeight, 
+            meshWidth: (int)Mathf.Sqrt(Mathf.Pow(GRAPH_AREA_LEN, 2) * 2), 
+            meshLength: (int)Mathf.Sqrt(Mathf.Pow(GRAPH_AREA_LEN, 2) * 2),
+            subdivide: subdivide,
+            radius: curvatureRadius,
+            useNormalMap: false
+        );
         
         _lineTex = null;
         _heightTex = null;
@@ -147,18 +211,7 @@ public class TerrainObject : MonoBehaviour
 
     public void GenerateTerrainLowQuality()
     {
-        meshFilter.sharedMesh = TerrainMeshGenerator.GenerateFromGraph(
-            graph: _graph,
-            graphWidth: (int)Mathf.Sqrt(Mathf.Pow(GRAPH_AREA_LEN, 2) * 2), 
-            graphHeight: (int)Mathf.Sqrt(Mathf.Pow(GRAPH_AREA_LEN, 2) * 2),
-            heightMap: _heightMap, 
-            meshHeight: scaleHeight, 
-            meshWidth: (int)Mathf.Sqrt(Mathf.Pow(GRAPH_AREA_LEN, 2) * 2), 
-            meshLength: (int)Mathf.Sqrt(Mathf.Pow(GRAPH_AREA_LEN, 2) * 2),
-            subdivide: subdivide,
-            radius: curvatureRadius,
-            useNormalMap: false
-        );
+        meshFilter.sharedMesh = _meshGenerator.GenerateFromGraph();
 
         var colFlat = new Color[TEX_RES_NORMAL * TEX_RES_NORMAL];
         for (int y = 0; y < TEX_RES_NORMAL; y++)
@@ -230,7 +283,7 @@ public class TerrainObject : MonoBehaviour
         if (mMaterial.GetTexture("_NodeColTex") == null)
         {
             GenerateNodeColors();
-            mMaterial.SetTexture("_NodeColTex", _nodeColTex);
+            mMaterial.SetTexture("_NodeColTex", _outlineTex);
         }
         else
         {
