@@ -90,12 +90,6 @@ public static class TextureUtil
     {
         var colors = new Color[resX * resY];
         float pixToGraphCoord = graph.width / resX;
-        var randomizedColors = new Color[graph.nodes.Count];
-
-        for (int i = 0; i < graph.nodes.Count; i++)
-        {
-            randomizedColors[i] = UnityEngine.Random.ColorHSV(0f, 1f, 1f, 1f, 0.5f, 1f);
-        }
 
         for (int y = 0; y < resY; y++)
             for (int x = 0; x < resX; x++)
@@ -116,7 +110,7 @@ public static class TextureUtil
                         // only take sqrt if we're close enough
                         float dist = Mathf.Sqrt(distSq);
                         float alpha = 1 - dist / rad;
-                        var color = randomizedColors[count];
+                        var color = node.color;
                         color.a = alpha;
                         float finalAlph = color.a + finalColor.a * (1 - color.a);
                         finalColor.r = (color.r * color.a + finalColor.r * finalColor.a * (1 - color.a)) / finalAlph;

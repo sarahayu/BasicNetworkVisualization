@@ -5,6 +5,7 @@ Shader "Custom/Lambert"
         _Color ("Color", Color) = (1,1,1,1)
         _LineTex ("Albedo (RGB)", 2D) = "black" {}
         _NodeColTex ("Node Colors (RGBA)", 2D) = "black" {}
+        _SelectionTex ("Selection (RGBA)", 2D) = "black" {}
         // _Glossiness ("Smoothness", Range(0,1)) = 0.0
         // _Metallic ("Metallic", Range(0,1)) = 0.0
         _NumLevels("Num Levels", Float) = 10.0
@@ -26,6 +27,7 @@ Shader "Custom/Lambert"
         fixed4 _Color;
         sampler2D _LineTex;
         sampler2D _NodeColTex;
+        sampler2D _SelectionTex;
         sampler2D _HeightMap;
         sampler2D _BumpMap; 
 
@@ -70,12 +72,27 @@ Shader "Custom/Lambert"
                 heightFactor = inverseLerp(0, _MaxHeight + 0.01, getSphericalHeight(IN.worldPos));
             float modds = fmod(heightFactor, 1.0 / _NumLevels);
             float stepFactor = heightFactor - modds + ceil(modds * _NumLevels) / _NumLevels;
+
             // lower whiteness intensity by multiplying contour color by 0.7
             stepFactor *= 0.7;
+
             // combine background color and node color texture
             fixed4 nodeColAndBg = fixed4(_Color.rgb * (1 - nodeCol.a) + nodeCol.rgb * nodeCol.a, 1);
+
             // use node colors and background as base colors, then screen with contour line texture and link lines
+            // o.Albedo = 1 - (1 - nodeColAndBg) * (1 - (linkLineCol.rgb));
             o.Albedo = 1 - (1 - nodeColAndBg) * (1 - (stepFactor + linkLineCol.rgb));
+
+            // add selection highlighting
+            fixed4 selCol = tex2D (_SelectionTex, IN.uv_LineTex);
+            
+            // if transparency set to 0, we are only doing outlines, so just add color (this is my own convention)
+            if (selCol.a == 0)
+                o.Albedo.rgb += selCol.rgb;
+            // otherwise, multiply colors
+            else
+                o.Albedo.rgb *= selCol.rgb;
+
             o.Normal = UnpackNormal (tex2D (_BumpMap, IN.uv_LineTex));
             o.Alpha = linkLineCol.a;
         }

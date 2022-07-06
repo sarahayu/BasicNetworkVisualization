@@ -140,7 +140,7 @@ public class TerrainMeshGenerator
         
         return new Vector2(
             MathUtil.rlerp(localPos.x, minBoundX, maxBoundX),
-            1 - MathUtil.rlerp(localPos.z, minBoundZ, maxBoundZ)
+            MathUtil.rlerp(localPos.z, minBoundZ, maxBoundZ)
             );
     }
     
@@ -161,9 +161,9 @@ public class TerrainMeshGenerator
             float x0 = (float)p0.x, y0 = (float)p0.y,
                 x1 = (float)p1.x, y1 = (float)p1.y,
                 x2 = (float)p2.x, y2 = (float)p2.y;
-            vertices.Add(flatToRoundCoords(new Vector3(startSubdivX + x0, meshHeight * heightMap.maxWeightAt(x0 / (meshWidth - 1), y0 / (meshLength - 1)), startSubdivZ - y0), vecOrigin));
-            vertices.Add(flatToRoundCoords(new Vector3(startSubdivX + x1, meshHeight * heightMap.maxWeightAt(x1 / (meshWidth - 1), y1 / (meshLength - 1)), startSubdivZ - y1), vecOrigin));
-            vertices.Add(flatToRoundCoords(new Vector3(startSubdivX + x2, meshHeight * heightMap.maxWeightAt(x2 / (meshWidth - 1), y2 / (meshLength - 1)), startSubdivZ - y2), vecOrigin));
+            vertices.Add(flatToRoundCoords(new Vector3(startSubdivX + x0, meshHeight * heightMap.MaxWeightAt(x0 / (meshWidth - 1), y0 / (meshLength - 1)), startSubdivZ - y0), vecOrigin));
+            vertices.Add(flatToRoundCoords(new Vector3(startSubdivX + x1, meshHeight * heightMap.MaxWeightAt(x1 / (meshWidth - 1), y1 / (meshLength - 1)), startSubdivZ - y1), vecOrigin));
+            vertices.Add(flatToRoundCoords(new Vector3(startSubdivX + x2, meshHeight * heightMap.MaxWeightAt(x2 / (meshWidth - 1), y2 / (meshLength - 1)), startSubdivZ - y2), vecOrigin));
             indices.Add(i * 3);
             indices.Add(i * 3 + 1);
             indices.Add(i * 3 + 2); // Changes order

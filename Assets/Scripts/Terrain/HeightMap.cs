@@ -53,7 +53,7 @@ public class HeightMap
         for (int y = 0; y < resY; y++)
             for (int x = 0; x < resX; x++)
             {
-                heightVal[y * resX + x] = maxWeightAt((float)x / (resX - 1), (float)y / (resY - 1));
+                heightVal[y * resX + x] = MaxWeightAt((float)x / (resX - 1), (float)y / (resY - 1));
             }
         
         float[] res = new float[resX * resX];
@@ -168,7 +168,7 @@ public class HeightMap
         return size / _graphMaxSize * _falloffDistance;
     }
 
-    public float maxWeightAt(float ratioX, float ratioY)
+    public float MaxWeightAt(float ratioX, float ratioY)
     {
         float x = ratioX * (_graphWidth), y = ratioY * (_graphHeight);
         var maxWeight = 0f;

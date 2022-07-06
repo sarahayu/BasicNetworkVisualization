@@ -11,6 +11,8 @@ public class TerrainObject : MonoBehaviour
     const int TEX_RES_NORMAL = 480;
     const int TEX_RES_ALBEDO = 1280;
 
+    public SelectionEvent OnSelected;
+
     public TextAsset networkJsonFile;
     // public GameObject nodePrefab;
     // public Camera worldCamera;
@@ -67,33 +69,35 @@ public class TerrainObject : MonoBehaviour
     Texture2D _heightTex = null;
     Texture2D _normalTex = null;
     Texture2D _nodeColTex = null;
-    Texture2D _outlineTex = null;
+    Texture2D _selectionTex = null;
     bool _rightGripPressed = false;
     bool _leftGripPressed = false;
 
-    UnityEvent _selectionEvent;
 
     public void Start()
     {
-        _selectionEvent = new UnityEvent();
-        _selectionEvent.AddListener(OnTraceActivate);
+        OnSelected.AddListener(OnSelectEvent);
 
-        _outlineTex = new Texture2D(144, 144, TextureFormat.ARGB32, false);
-        _terrainOutline = new TerrainOutline(_outlineTex);
+        _selectionTex = new Texture2D(360, 360);
+        _terrainOutline = new TerrainOutline(_selectionTex);
 
         Reset();
         ToggleAlbedoLines();
         ToggleHeightMap();
         ToggleNormalMap();
         ToggleNodeColors();
+
+        GetMeshMaterial().SetTexture("_SelectionTex", _selectionTex);
     }
+    public void OnSelectEvent(SelectionEventData eventData)
+    {
+        var outStr = "TerrainObject: ";
 
-    // public void Update()
-    // {
-    //     Debug.DrawRay(laserBox.position, laserBox.forward * 10, Color.cyan);
-    // }
+        foreach (var node in eventData.groupsSelected)
+            outStr += node.size + ",";
 
-    public Transform indicator;
+        print(outStr);
+    }
 
     public void ControllerTriggerPressRight()
     {
@@ -103,11 +107,16 @@ public class TerrainObject : MonoBehaviour
     public void ControllerTriggerReleaseRight()
     {
         _rightGripPressed = false;
+        _terrainOutline.ConnectAndUpdate();
+        OnSelected.Invoke(new SelectionEventData() {
+            groupsSelected = _graph.GetContainedInOutline(_terrainOutline)
+        });
     }
 
     public void ControllerTriggerPressleft()
     {
         _leftGripPressed = true;
+        _terrainOutline.ClearPoints();
     }
 
     public void ControllerTriggerReleaseleft()
@@ -283,7 +292,7 @@ public class TerrainObject : MonoBehaviour
         if (mMaterial.GetTexture("_NodeColTex") == null)
         {
             GenerateNodeColors();
-            mMaterial.SetTexture("_NodeColTex", _outlineTex);
+            mMaterial.SetTexture("_NodeColTex", _nodeColTex);
         }
         else
         {
@@ -299,11 +308,6 @@ public class TerrainObject : MonoBehaviour
         // regenerate line tex every time, it's not computationally expensive and we might change line opacity often
         // if (_lineTex == null)
         _lineTex = _heightMap.GenerateTextureLines(TEX_RES_ALBEDO, TEX_RES_ALBEDO, lineColorIntensity);
-    }
-
-    void OnTraceActivate()
-    {
-        ToggleAlbedoLines();
     }
 
     Material GetMeshMaterial()

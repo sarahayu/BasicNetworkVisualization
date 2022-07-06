@@ -11,6 +11,15 @@ public class TerrainGraphData
     public float width;
     public float height;
 
+    public List<TerrainNodeData> GetContainedInOutline(TerrainOutline outline)
+    {
+        List<TerrainNodeData> inOutline = new List<TerrainNodeData>();
+        foreach (var node in nodes)
+            if (outline.PointInOutline(new Vector2(node.x / width, node.y / height)))
+                inOutline.Add(node);
+        return inOutline;
+    }
+
     public static TerrainGraphData CreateFromJSONData(JSONNetworkData json, float width, float height)
     {
         TerrainGraphData graphData = new TerrainGraphData();
@@ -25,7 +34,7 @@ public class TerrainGraphData
         Dictionary<int, int> groupDegs = new Dictionary<int, int>();
         // keeps track of index in groupSizes mapped to actual idx in json data
         List<int> groupIndToJsonIdx = new List<int>();
-        // keep tack of group links; Item1 = group1 index, Item2 = group2 index, Item3 = weight
+        // keep track of group links; Item1 = group1 index, Item2 = group2 index, Item3 = weight
         Dictionary<string, Tuple<int, int, int>> groupLinks = new Dictionary<string, Tuple<int, int, int>>();
 
         // loop through json nodes and keep track of the groups made by leaf nodes
@@ -98,6 +107,8 @@ public class TerrainGraphData
         {
             graphData.nodes[i].x = (int)(points[i].x + rad);
             graphData.nodes[i].y = (int)(points[i].z + rad);
+            
+            graphData.nodes[i].color = UnityEngine.Random.ColorHSV(0f, 1f, 1f, 1f, 0.5f, 1f);
         }
 
         // loop through groupLinks and create graph data links
@@ -121,6 +132,7 @@ public class TerrainNodeData
 {
     public int x, y;
     public int size;
+    public Color color;
 }
 
 public class TerrainLinkData
