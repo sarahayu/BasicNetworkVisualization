@@ -59,6 +59,7 @@ public class TerrainObject : MonoBehaviour
     public AnimationCurve slackFunc;
     /* public */ bool slackIsLevel;         // obsolete field, may remove later
     public float curvatureRadius = 100f;
+    public Transform parent;
 
     JSONNetworkData _data;
     TerrainGraphData _graph;
@@ -76,10 +77,10 @@ public class TerrainObject : MonoBehaviour
 
     public void Start()
     {
-        OnSelected.AddListener(OnSelectEvent);
-
         _selectionTex = new Texture2D(360, 360);
         _terrainOutline = new TerrainOutline(_selectionTex);
+
+        transform.parent = parent;
 
         Reset();
         ToggleAlbedoLines();
@@ -88,15 +89,6 @@ public class TerrainObject : MonoBehaviour
         ToggleNodeColors();
 
         GetMeshMaterial().SetTexture("_SelectionTex", _selectionTex);
-    }
-    public void OnSelectEvent(SelectionEventData eventData)
-    {
-        var outStr = "TerrainObject: ";
-
-        foreach (var node in eventData.groupsSelected)
-            outStr += node.size + ",";
-
-        print(outStr);
     }
 
     public void ControllerTriggerPressRight()

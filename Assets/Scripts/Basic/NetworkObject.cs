@@ -22,12 +22,13 @@ public class NetworkObject : MonoBehaviour
 {
     public TextAsset networkJsonFile;
     public GameObject nodePrefab;
-    public Camera worldCamera;
+    // public Camera worldCamera;
     public float minLinkThickness = 0.01f;
     public float maxLinkThickness = 0.15f;
     public float lineThicknessGrowth = 1.2f;
     public Transform rightController;
     public Transform leftController;
+    public NetworkDataParser dataParser = null;
     
     Transform cameraTransform;
 
@@ -45,8 +46,11 @@ public class NetworkObject : MonoBehaviour
 
     void Start()
     {        
-        data = JsonUtility.FromJson<NetworkData>(networkJsonFile.text);
-        cameraTransform = worldCamera.GetComponent<Transform>();
+        if (dataParser != null)
+            data = dataParser.ParseFromString(networkJsonFile.text);
+        else
+            data = JsonUtility.FromJson<NetworkData>(networkJsonFile.text);
+        // cameraTransform = worldCamera.GetComponent<Transform>();
 
         int nodeIndex = 0;
         foreach (var node in data.nodes)
