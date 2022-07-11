@@ -6,23 +6,26 @@ using UnityEngine;
 
 public class TerrainGraphData
 {
+    public NetworkData networkData;
     public List<TerrainNodeData> nodes;
     public List<TerrainLinkData> links;
     public float width;
     public float height;
 
-    public List<TerrainNodeData> GetContainedInOutline(TerrainOutline outline)
+    public List<NodeData> GetContainedInOutline(TerrainOutline outline)
     {
-        List<TerrainNodeData> inOutline = new List<TerrainNodeData>();
+        List<NodeData> inOutline = new List<NodeData>();
         foreach (var node in nodes)
             if (outline.PointInOutline(new Vector2(node.x / width, node.y / height)))
-                inOutline.Add(node);
+                foreach (var childInd in node.parsedNode.childIdx)
+                    inOutline.Add(networkData.nodes[childInd]);
         return inOutline;
     }
 
-    public static TerrainGraphData CreateFromJSONData(JSONNetworkData json, float width, float height)
+    public static TerrainGraphData CreateFromJSONData(NetworkData generalNetworkData, FootballFileData parsedFileData, float width, float height)
     {
         TerrainGraphData graphData = new TerrainGraphData();
+        graphData.networkData = generalNetworkData;
         graphData.nodes = new List<TerrainNodeData>();
         graphData.links = new List<TerrainLinkData>();
         graphData.width = width;
@@ -32,28 +35,31 @@ public class TerrainGraphData
         Dictionary<int, int> groupSizes = new Dictionary<int, int>();
         // keeps track of group degree
         Dictionary<int, int> groupDegs = new Dictionary<int, int>();
+        // keeps track of group colors
+        Dictionary<int, Color> groupCols = new Dictionary<int, Color>();
         // keeps track of index in groupSizes mapped to actual idx in json data
         List<int> groupIndToJsonIdx = new List<int>();
         // keep track of group links; Item1 = group1 index, Item2 = group2 index, Item3 = weight
         Dictionary<string, Tuple<int, int, int>> groupLinks = new Dictionary<string, Tuple<int, int, int>>();
 
         // loop through json nodes and keep track of the groups made by leaf nodes
-        foreach (var node in json.nodes)
+        foreach (var node in parsedFileData.nodes)
         {
             if (!node.virtualNode && !groupSizes.ContainsKey(node.ancIdx))
             {
-                groupSizes.Add(node.ancIdx, json.nodes[node.ancIdx].childIdx.Length);
+                groupSizes.Add(node.ancIdx, parsedFileData.nodes[node.ancIdx].childIdx.Length);
+                groupCols.Add(node.ancIdx, generalNetworkData.nodes[node.idx].color);
             }
         }
 
         // loop through json links and bookkeep them to groupLinks, also find out group degrees
-        foreach (var link in json.links)
+        foreach (var link in parsedFileData.links)
         {
             // check if the ancestor of the one of the link's source nodes is inside our groupSizes
             // (since both link nodes are presumably leaves, we only need to check one of them)
-            if (groupSizes.ContainsKey(json.nodes[link.sourceIdx].ancIdx))
+            if (groupSizes.ContainsKey(parsedFileData.nodes[link.sourceIdx].ancIdx))
             {
-                int group1 = json.nodes[link.sourceIdx].ancIdx, group2 = json.nodes[link.targetIdx].ancIdx;
+                int group1 = parsedFileData.nodes[link.sourceIdx].ancIdx, group2 = parsedFileData.nodes[link.targetIdx].ancIdx;
 
                 if (group1 != group2)
                 {
@@ -67,7 +73,7 @@ public class TerrainGraphData
                     }
 
                     // create hash of two group idxs in order to make sure links between two groups always have the same entry in groupLinks
-                    var hash = json.nodes[group1].label.ToString() + "-" + json.nodes[group2].label.ToString();
+                    var hash = parsedFileData.nodes[group1].label.ToString() + "-" + parsedFileData.nodes[group2].label.ToString();
 
                     // increment link weight
                     if (!groupLinks.ContainsKey(hash))
@@ -94,7 +100,7 @@ public class TerrainGraphData
         // (also then sort by height because why not)
         foreach (var idxAndDeg in groupDegs.OrderBy(_idxAndDeg => -_idxAndDeg.Value).ThenBy(_idxAndDeg => groupSizes[_idxAndDeg.Key]))
         {
-            graphData.nodes.Add(new TerrainNodeData { size = groupSizes[idxAndDeg.Key] });
+            graphData.nodes.Add(new TerrainNodeData { size = groupSizes[idxAndDeg.Key], idx = idxAndDeg.Key, color = groupCols[idxAndDeg.Key], parsedNode = parsedFileData.nodes[idxAndDeg.Key] });
             groupIndToJsonIdx.Add(idxAndDeg.Key);
 
         }
@@ -107,8 +113,6 @@ public class TerrainGraphData
         {
             graphData.nodes[i].x = (int)(points[i].x + rad);
             graphData.nodes[i].y = (int)(points[i].z + rad);
-            
-            graphData.nodes[i].color = UnityEngine.Random.ColorHSV(0f, 1f, 1f, 1f, 0.5f, 1f);
         }
 
         // loop through groupLinks and create graph data links
@@ -120,7 +124,7 @@ public class TerrainGraphData
             graphData.links.Add(new TerrainLinkData { 
                 source = groupIndToJsonIdx.IndexOf(sourceIdx), 
                 target = groupIndToJsonIdx.IndexOf(targetIdx), 
-                weight = (int)weight 
+                weight = (int)weight,
                 });
         }
 
@@ -128,10 +132,13 @@ public class TerrainGraphData
     }
 }
 
+// wrapper for parsed node data
 public class TerrainNodeData
 {
+    public FootballNodeFileData parsedNode;
     public int x, y;
     public int size;
+    public int idx;     // idx of ancestor node that owns this group
     public Color color;
 }
 

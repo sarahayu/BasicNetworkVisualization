@@ -12,14 +12,9 @@ public class TerrainObject : MonoBehaviour
     const int TEX_RES_ALBEDO = 1280;
 
     public SelectionEvent OnSelected;
+    public DeselectionEvent OnDeselected;
 
-    public TextAsset networkJsonFile;
-    // public GameObject nodePrefab;
-    // public Camera worldCamera;
-    // public Transform rightController;
-    // public Transform leftController;
-    
-    // Transform cameraTransform;
+    public NetworkData networkData;
 
     public bool autoUpdate = false;
 
@@ -27,28 +22,6 @@ public class TerrainObject : MonoBehaviour
     public MeshRenderer meshRenderer;
     public MeshCollider meshCollider;
     public Transform laserBox;
-    // public Transform anchor;
-    // int numControllersPressed = 0;
-    // Vector3 ogControllerRelPos = Vector3.zero;
-    // Vector3 ogControllersPos;
-    // Vector3 ogNetworkScale;
-    // Quaternion ogNetworkRot;
-    // Vector3 ogNetworkPos;
-    // Vector3[] grabPoints = new Vector3[2];
-    // int numGrabPoints = 0;
-
-    // void Start()
-    // {        
-    //     data = JsonUtility.FromJson<JSONNetworkData>(networkJsonFile.text);
-    //     foreach (var node in data.nodes)
-    //     {
-    //         print(node.label);
-    //     }
-    // }
-
-    // void FixedUpdate()
-    // {
-    // }
 
     public float scaleHeight = 50f;
     public float falloff = 1f;
@@ -61,7 +34,7 @@ public class TerrainObject : MonoBehaviour
     public float curvatureRadius = 100f;
     public Transform parent;
 
-    JSONNetworkData _data;
+    FootballFileData _parsedFileData;
     TerrainGraphData _graph;
     TerrainMeshGenerator _meshGenerator;
     TerrainOutline _terrainOutline;
@@ -109,6 +82,7 @@ public class TerrainObject : MonoBehaviour
     {
         _leftGripPressed = true;
         _terrainOutline.ClearPoints();
+        OnDeselected.Invoke(new DeselectionEventData());
     }
 
     public void ControllerTriggerReleaseleft()
@@ -122,7 +96,6 @@ public class TerrainObject : MonoBehaviour
         {
             var sourcePos = laserBox.position - laserBox.forward * laserBox.localScale.z / 2;
             Ray ray = new Ray(sourcePos, laserBox.forward);
-            // Debug.DrawRay(sourcePos, laserBox.forward, Color.green, 2, false);
             RaycastHit hit;
 
             if (meshCollider.Raycast(ray, out hit, Mathf.Infinity))
@@ -132,12 +105,6 @@ public class TerrainObject : MonoBehaviour
                 var texPos = _meshGenerator.LocalToTexPos(localPos);
 
                 _terrainOutline.AddPointAndUpdate(texPos);
-
-                // _outlineTex.SetPixel((int)(texPos.x * _outlineTex.width), (int)(texPos.y * _outlineTex.height), Color.black);
-                // _outlineTex.Apply();
-
-                // var indicPos = transform.TransformPoint(localPos);
-                // indicator.position = indicPos;
             }    
         }
     }
@@ -167,8 +134,10 @@ public class TerrainObject : MonoBehaviour
         //     new TerrainNodeData{ x = 543 * GRAPH_AREA_LEN / 720  + offset, y = 581 * GRAPH_AREA_LEN / 720  + offset, size = 3 },
         // };
 
-        _data = JsonUtility.FromJson<JSONNetworkData>(networkJsonFile.text);
-        _graph = TerrainGraphData.CreateFromJSONData(_data, (int)Mathf.Sqrt(Mathf.Pow(GRAPH_AREA_LEN, 2) * 2), (int)Mathf.Sqrt(Mathf.Pow(GRAPH_AREA_LEN, 2) * 2));
+        networkData.ParseFromString();
+
+        _parsedFileData = JsonUtility.FromJson<FootballFileData>(networkData.dataFile.text);
+        _graph = TerrainGraphData.CreateFromJSONData(networkData, _parsedFileData, (int)Mathf.Sqrt(Mathf.Pow(GRAPH_AREA_LEN, 2) * 2), (int)Mathf.Sqrt(Mathf.Pow(GRAPH_AREA_LEN, 2) * 2));
 
         _heightMap = new HeightMap(
             graph: _graph,

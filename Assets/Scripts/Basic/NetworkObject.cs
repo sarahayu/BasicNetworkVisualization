@@ -2,6 +2,7 @@ using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 using TMPro;
+using System.Linq;
 
 class NodeObject
 {
@@ -9,6 +10,7 @@ class NodeObject
     public GameObject nodeObject;
 
     public Color color;
+    public int idInNetworkObject;
     public List<IndexedLink> links = new List<IndexedLink>();
 }
 
@@ -20,7 +22,7 @@ class IndexedLink
 
 public class NetworkObject : MonoBehaviour
 {
-    public TextAsset networkJsonFile;
+    public NetworkData networkData;
     public GameObject nodePrefab;
     // public Camera worldCamera;
     public float minLinkThickness = 0.01f;
@@ -28,11 +30,9 @@ public class NetworkObject : MonoBehaviour
     public float lineThicknessGrowth = 1.2f;
     public Transform rightController;
     public Transform leftController;
-    public NetworkDataParser dataParser = null;
     
     Transform cameraTransform;
 
-    NetworkData data;
     List<NodeObject> nodeObjects = new List<NodeObject>();
     List<GameObject> links = new List<GameObject>();
     int numControllersPressed = 0;
@@ -45,22 +45,14 @@ public class NetworkObject : MonoBehaviour
     int numGrabPoints = 0;
 
     void Start()
-    {        
-        if (dataParser != null)
-            data = dataParser.ParseFromString(networkJsonFile.text);
-        else
-            data = JsonUtility.FromJson<NetworkData>(networkJsonFile.text);
+    {
         // cameraTransform = worldCamera.GetComponent<Transform>();
 
         int nodeIndex = 0;
-        foreach (var node in data.nodes)
+        foreach (var node in networkData.nodes)
         {
-            Color color;
-            if (!ColorUtility.TryParseHtmlString(node.color, out color))
-                color = Color.black;
-
             var interactableNodeP = Instantiate(nodePrefab, new Vector3(node.x, node.y, node.z) * 3, Quaternion.identity);
-            interactableNodeP.GetComponent<NodeDisplay>().Init(this, color, node.id, nodeIndex);
+            interactableNodeP.GetComponent<NodeDisplay>().Init(this, node.color, node.name, nodeIndex);
             // interactableNodeP.GetComponent<Rigidbody>().detectCollisions = false;
             var nodeTransform = interactableNodeP.transform;
             nodeTransform.SetParent(GetComponent<Transform>());
@@ -72,7 +64,8 @@ public class NetworkObject : MonoBehaviour
             nodeObjects.Add(new NodeObject() {
                 data = node,
                 nodeObject = interactableNodeP,
-                color = color
+                color = node.color,
+                idInNetworkObject = nodeIndex
             });
 
             nodeIndex++;
@@ -82,12 +75,12 @@ public class NetworkObject : MonoBehaviour
         int[] color2Ind = { 2, 3, 10, 11, 17, 18, 21, 22 };
 
         int max = -1;
-        foreach (var link in data.links)
+        foreach (var link in networkData.links)
             if (link.value > max)
                 max = link.value;
 
         int linkIndex = 0;
-        foreach (var link in data.links)
+        foreach (var link in networkData.links)
         {
             var rectPrism = GameObject.CreatePrimitive(PrimitiveType.Cube);
             rectPrism.transform.SetParent(transform);
@@ -193,6 +186,40 @@ public class NetworkObject : MonoBehaviour
     public void RemoveGrabber()
     {
         
+    }
+    
+    public void OnSelectEvent(SelectionEventData eventData)
+    {
+        foreach (var link in links)
+            link.SetActive(false);
+        int countIdx = 0;
+        foreach (var node in nodeObjects)
+        {
+            bool selected = eventData.groupsSelected.Any(item => item.id == countIdx);
+            if (!selected)
+                node.nodeObject.SetActive(false);
+            else
+            {
+                node.nodeObject.SetActive(true);
+                foreach (var link in node.links)
+                {
+                    bool srcSelected = eventData.groupsSelected.Any(item => item.id == link.data.source);
+                    bool targetSelected = eventData.groupsSelected.Any(item => item.id == link.data.target);
+
+                    if (srcSelected && targetSelected)
+                        links[link.index].SetActive(true);
+                }
+            }
+            countIdx++;
+        }
+    }
+
+    public void OnDeselectEvent(DeselectionEventData eventData)
+    {
+        foreach (var link in links)
+            link.SetActive(true);
+        foreach (var node in nodeObjects)
+            node.nodeObject.SetActive(true);
     }
 
     public void Rearrange(int movedIndex)

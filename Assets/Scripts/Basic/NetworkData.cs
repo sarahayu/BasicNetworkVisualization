@@ -1,27 +1,35 @@
-using System;
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 
-[Serializable]
-public class NetworkData
+// this should contain all the information we need about the Network shared between the main view and over view
+// TODO make this templated to allow for more flexibility??
+public abstract class NetworkData : MonoBehaviour
 {
+    public TextAsset dataFile;
     public NodeData[] nodes;
     public LinkData[] links;
+
+    void Awake()
+    {
+        ParseFromString();
+    }
+
+    public abstract void ParseFromString();
 }
 
-[Serializable]
 public class NodeData
 {
-    public string id;
+    public string name;
+    public int id;
     public int group;
-    public string color;
+    public Color color;
     public float x;
     public float y;
     public float z;
+    public bool active;
 }
 
-[Serializable]
 public class LinkData
 {
     public int source;

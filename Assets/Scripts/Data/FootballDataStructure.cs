@@ -4,14 +4,14 @@ using System.Collections.Generic;
 using UnityEngine;
 
 [Serializable]
-public class JSONNetworkData
+public class FootballFileData
 {
-    public JSONNodeData[] nodes;
-    public JSONLinkData[] links;
+    public FootballNodeFileData[] nodes;
+    public FootballLinkFileData[] links;
 }
 
 [Serializable]
-public class JSONNodeData
+public class FootballNodeFileData
 {
     public bool virtualNode;
     public int height;
@@ -22,7 +22,7 @@ public class JSONNodeData
 }
 
 [Serializable]
-public class JSONLinkData
+public class FootballLinkFileData
 {
     public int sourceIdx;
     public int targetIdx;
