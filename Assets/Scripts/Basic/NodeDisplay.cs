@@ -14,17 +14,20 @@ public class NodeDisplay : MonoBehaviour
     GameObject worldCamera;
     NetworkObject network;
 
-    Color color;
+    Color normalColor;
+    Color desatColor;
     string id;
     int hash;
     bool rearrangingAroundThis = false;
 
-    public void Init(NetworkObject network, Color color, string id, int hash)
+    public void Init(NetworkObject network, HSV color, string id, int hash)
     {
         this.network = network;
         this.id = id;
-        this.color = color;
         this.hash = hash;
+        
+        this.normalColor = color.ToRGB();
+        this.desatColor = color.CloneAndDesat(0.5f).ToRGB();
     }
 
     void Start()
@@ -34,9 +37,9 @@ public class NodeDisplay : MonoBehaviour
         label = renderedObject.Find("Label").gameObject;
         TMP = label.GetComponent<TextMeshPro>();
 
-        sphere.GetComponent<Renderer>().material.color = color;
+        sphere.GetComponent<Renderer>().material.color = desatColor;
         TMP.text = id;
-        TMP.faceColor = WashoutColor(TMP.faceColor, textFadeOut);
+        TMP.faceColor = ColorUtil.DuplicateWithGamma(TMP.faceColor, textFadeOut);
     }
     void Update()
     {
@@ -54,14 +57,14 @@ public class NodeDisplay : MonoBehaviour
 
     public void Hover()
     {
-        TMP.faceColor = WashoutColor(TMP.faceColor, 1f);
-        sphere.GetComponent<Renderer>().material.color = color * 1.5f;
+        TMP.faceColor = ColorUtil.DuplicateWithGamma(TMP.faceColor, 1f);
+        sphere.GetComponent<Renderer>().material.color = normalColor;
     }
 
     public void Unhover()
     {
-        TMP.faceColor = WashoutColor(TMP.faceColor, textFadeOut);
-        sphere.GetComponent<Renderer>().material.color = color;
+        TMP.faceColor = ColorUtil.DuplicateWithGamma(TMP.faceColor, textFadeOut);
+        sphere.GetComponent<Renderer>().material.color = desatColor;
     }
 
     public void Grab()
@@ -72,10 +75,5 @@ public class NodeDisplay : MonoBehaviour
     public void Ungrab()
     {
         rearrangingAroundThis = false;
-    }
-
-    Color WashoutColor(Color color, float gamma)
-    {
-        return new Color(color.r, color.g, color.b, gamma);
     }
 }

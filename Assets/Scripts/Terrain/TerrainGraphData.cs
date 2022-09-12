@@ -36,7 +36,7 @@ public class TerrainGraphData
         // keeps track of group degree
         Dictionary<int, int> groupDegs = new Dictionary<int, int>();
         // keeps track of group colors
-        Dictionary<int, Color> groupCols = new Dictionary<int, Color>();
+        Dictionary<int, HSV> groupCols = new Dictionary<int, HSV>();
         // keeps track of index in groupSizes mapped to actual idx in json data
         List<int> groupIndToJsonIdx = new List<int>();
         // keep track of group links; Item1 = group1 index, Item2 = group2 index, Item3 = weight
@@ -139,7 +139,7 @@ public class TerrainNodeData
     public int x, y;
     public int size;
     public int idx;     // idx of ancestor node that owns this group
-    public Color color;
+    public HSV color;
 }
 
 public class TerrainLinkData

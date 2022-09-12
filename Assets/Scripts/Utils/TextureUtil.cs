@@ -110,7 +110,7 @@ public static class TextureUtil
                         // only take sqrt if we're close enough
                         float dist = Mathf.Sqrt(distSq);
                         float alpha = 1 - dist / rad;
-                        var color = node.color;
+                        var color = node.color.ToRGB();
                         color.a = alpha;
                         float finalAlph = color.a + finalColor.a * (1 - color.a);
                         finalColor.r = (color.r * color.a + finalColor.r * finalColor.a * (1 - color.a)) / finalAlph;

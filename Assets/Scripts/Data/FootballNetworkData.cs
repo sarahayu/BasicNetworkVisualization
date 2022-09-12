@@ -9,13 +9,13 @@ public class FootballNetworkData : NetworkData
         var fileData = JsonUtility.FromJson<FootballFileData>(dataFile.text);
 
         // groupColors = idx: int, groupColor: Color
-        var groupColors = new Dictionary<int, Color>();
+        var groupColors = new Dictionary<int, HSV>();
 
         foreach (var node in fileData.nodes)
         {
             // if this node is leaf node and we haven't init'ed a color for the group...
             if (!node.virtualNode && !groupColors.ContainsKey(node.ancIdx))
-                groupColors[node.ancIdx] = UnityEngine.Random.ColorHSV(0f, 1f, 1f, 1f, 0.5f, 1f);
+                groupColors[node.ancIdx] = ColorUtil.GenerateRandomHSV();
         }
 
         var nodeList = new List<NodeData>();

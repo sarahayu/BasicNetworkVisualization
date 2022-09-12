@@ -23,7 +23,7 @@ public class NodeData
     public string name;
     public int id;
     public int group;
-    public Color color;
+    public HSV color;
     public float x;
     public float y;
     public float z;

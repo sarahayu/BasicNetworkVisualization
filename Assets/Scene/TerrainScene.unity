@@ -1515,6 +1515,10 @@ PrefabInstance:
       propertyPath: rightController
       value: 
       objectReference: {fileID: 754600487}
+    - target: {fileID: 5989789338801806390, guid: 8119947207e724d41b532e0a0d64ba11, type: 3}
+      propertyPath: maxLinkThickness
+      value: 0.02
+      objectReference: {fileID: 0}
     - target: {fileID: 5989789338801806391, guid: 8119947207e724d41b532e0a0d64ba11, type: 3}
       propertyPath: m_RootOrder
       value: 12

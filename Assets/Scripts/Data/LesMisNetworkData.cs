@@ -19,7 +19,7 @@ public class LesMisNetworkData : NetworkData
                 name = fileNode.id,
                 id = i,             // just use unique int as id for now
                 group = fileNode.group,
-                color = MiscUtil.TryGetColor(fileNode.color),
+                color = ColorUtil.TryGetHSV(fileNode.color),
                 x = fileNode.x,
                 y = fileNode.y,
                 z = fileNode.z,

@@ -9,7 +9,7 @@ class NodeObject
     public NodeData data;
     public GameObject nodeObject;
 
-    public Color color;
+    public HSV color;
     public int idInNetworkObject;
     public List<IndexedLink> links = new List<IndexedLink>();
 }
@@ -110,8 +110,8 @@ public class NetworkObject : MonoBehaviour
             var vertices = mesh.vertices;
             var colors = new Color[vertices.Length];
 
-            Color colorSource = nodeObjects[link.source].color, 
-                colorTarget = nodeObjects[link.target].color;
+            Color colorSource = nodeObjects[link.source].color.CloneAndDesat(0.5f).ToRGB(), 
+                colorTarget = nodeObjects[link.target].color.CloneAndDesat(0.5f).ToRGB();
             foreach (var ind in color1Ind)
                 colors[ind] = colorSource;
             foreach (var ind in color2Ind)
