@@ -103,7 +103,7 @@ public class NetworkObject : MonoBehaviour
             rectPrism.transform.LookAt(target.transform.position);
             rectPrism.transform.RotateAround(rectPrism.transform.position, rectPrism.transform.right, 90);
 
-            rectPrism.GetComponent<MeshRenderer>().material.shader = Shader.Find("Particles/Standard Surface");
+            rectPrism.GetComponent<MeshRenderer>().material.shader = Shader.Find("Shaders/Particle Standard Surface");
             
 
             var mesh = rectPrism.GetComponent<MeshFilter>().mesh;
