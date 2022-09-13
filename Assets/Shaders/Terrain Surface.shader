@@ -1,4 +1,4 @@
-Shader "Custom/Lambert"
+Shader "Custom/Terrain Surface"
 {
     Properties
     {

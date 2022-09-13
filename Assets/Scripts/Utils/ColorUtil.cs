@@ -37,4 +37,9 @@ public static class ColorUtil
             return TryGetHSV(kellys[index++]);
         return new HSV(UnityEngine.Random.ColorHSV(0f, 1f, 1f, 1f, 0.5f, 1f));
     }
+
+    public static void ResetRandomHSV()
+    {
+        index = 0;
+    }
 }

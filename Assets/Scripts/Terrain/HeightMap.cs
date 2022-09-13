@@ -2,6 +2,12 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
+using System.Linq;
+
+using TriangleNet.Geometry;
+using TriangleNet.Meshing;
+using TriangleNet.Meshing.Algorithm;
+using TriangleNet.Topology;
 
 public class HeightMap
 {
@@ -45,33 +51,124 @@ public class HeightMap
     //     // var blurred = MathUtil.gaussBlur_4(heightMap, 1);
     //     return heightMap;
     // }
+    Material _glMaterial;
+    RenderTexture _renderTexture;
 
     public Texture2D GenerateTextureHeight(int resX, int resY)
     {
-        var heightVal = new float[resX * resY];
 
-        for (int y = 0; y < resY; y++)
-            for (int x = 0; x < resX; x++)
-            {
-                heightVal[y * resX + x] = MaxWeightAt((float)x / (resX - 1), (float)y / (resY - 1));
-            }
+        var points = new List<Vertex>();
         
-        float[] res = new float[resX * resX];
-            
-        // MathUtil.gaussBlur_4(heightVal, res, resX, resY, 1);
+        TerrainUtil.PopulateCirclePoints(points, resX, resY, 40);
+        TerrainUtil.PopulateRidgePoints(points, _graph, _graphWidth, _graphHeight, resX, resY, 2);
+
+        var heights = new Dictionary<int, float>();
+        foreach (var point in points)
+        {
+            heights[(int)((int)point.y * resX + (int)point.x)] = MaxWeightAt((float)point.x / (resX - 1), (float)point.y / (resY - 1));
+            // heights.Add((int)(point.y * resX + point.x), MaxWeightAt((float)point.x / (resX - 1), (float)point.y / (resY - 1)));
+        }
+    
+        // Choose triangulator: Incremental, SweepLine or Dwyer.
+        var triangulator = new Dwyer();
+
+        // Generate a default mesher.
+        var mesher = new GenericMesher(triangulator);
         
-        var colors = new Color[resX * resY];
+        // Generate mesh.
+        var mesh = mesher.Triangulate(points);
 
-        for (int y = 0; y < resY; y++)
-            for (int x = 0; x < resX; x++)
-            {
-                colors[y * resX + x] = Color.Lerp(Color.black, Color.white, heightVal[y * resY + x]);
-            }
-
+        // setup
         var texture = new Texture2D(resX, resY);
         texture.wrapMode = TextureWrapMode.Clamp;
-        texture.SetPixels(colors);
+
+        _glMaterial = new Material(Shader.Find("Hidden/Internal-Colored"));
+        _glMaterial.hideFlags = HideFlags.HideAndDontSave;
+        _glMaterial.shader.hideFlags = HideFlags.HideAndDontSave;
+
+        // _glMaterial.SetInt("_SrcBlend", (int)UnityEngine.Rendering.BlendMode.One);
+        // _glMaterial.SetInt("_DstBlend", (int)UnityEngine.Rendering.BlendMode.Zero);
+
+        _renderTexture = RenderTexture.GetTemporary(resX, resY);
+        
+        RenderTexture.active = _renderTexture;
+       
+        GL.Clear( false, true, Color.black );
+ 
+        texture.ReadPixels( new Rect( 0, 0, texture.width, texture.height ), 0, 0 );
         texture.Apply();
+ 
+        RenderTexture.active = null;
+        // end setup
+
+
+        // draw
+       
+        RenderTexture.active = _renderTexture;
+       
+        // render GL stuff //
+        GL.Clear( false, true, Color.black );      
+        
+        _glMaterial.SetPass( 0 );
+        GL.PushMatrix();
+        GL.LoadPixelMatrix( 0, resX, resY, 0 );
+        GL.Begin( GL.TRIANGLES );
+        // GL.wireframe = true;
+        
+        foreach (var triangle in mesh.Triangles)
+        {
+            Vertex p0 = triangle.GetVertex(0), p1 = triangle.GetVertex(1), p2 = triangle.GetVertex(2);
+            float x0 = (float)p0.x, y0 = (float)p0.y,
+                x1 = (float)p1.x, y1 = (float)p1.y,
+                x2 = (float)p2.x, y2 = (float)p2.y;
+            // GL.Color( Color.white );
+            // GL.Vertex3( (float)resX / 2, (float)resY / 2, 0 );
+            if (!heights.ContainsKey((int)((int)y0 * resX + (int)x0))) continue;
+            if (!heights.ContainsKey((int)((int)y1 * resX + (int)x1))) continue;
+            if (!heights.ContainsKey((int)((int)y2 * resX + (int)x2))) continue;
+            GL.Color( Color.Lerp(Color.black, Color.white, heights[(int)((int)y0 * resX + (int)x0)]) );
+            GL.Vertex3( x0, resY - y0, 0 );
+            GL.Color( Color.Lerp(Color.black, Color.white, heights[(int)((int)y1 * resX + (int)x1)]) );
+            GL.Vertex3( x1, resY - y1, 0 );
+            GL.Color( Color.Lerp(Color.black, Color.white, heights[(int)((int)y2 * resX + (int)x2)]) );
+            GL.Vertex3( x2, resY - y2, 0 );
+        }
+
+        GL.End();
+        GL.PopMatrix();
+
+        ////////////////
+ 
+        texture.ReadPixels( new Rect( 0, 0, texture.width, texture.height ), 0, 0 );
+        texture.Apply();
+ 
+        RenderTexture.active = null;
+
+        // end draw
+
+
+        // var heightVal = new float[resX * resY];
+
+        // for (int y = 0; y < resY; y++)
+        //     for (int x = 0; x < resX; x++)
+        //     {
+        //         heightVal[y * resX + x] = MaxWeightAt((float)x / (resX - 1), (float)y / (resY - 1));
+        //     }
+        
+        // float[] res = new float[resX * resX];
+            
+        // // MathUtil.gaussBlur_4(heightVal, res, resX, resY, 1);
+        
+        // var colors = new Color[resX * resY];
+
+        // for (int y = 0; y < resY; y++)
+        //     for (int x = 0; x < resX; x++)
+        //     {
+        //         colors[y * resX + x] = Color.Lerp(Color.black, Color.white, heightVal[y * resY + x]);
+        //     }
+
+        // texture.SetPixels(colors);
+        // texture.Apply();
 
         return texture;
     }

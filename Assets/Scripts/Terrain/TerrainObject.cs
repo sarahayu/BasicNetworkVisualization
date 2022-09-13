@@ -134,6 +134,8 @@ public class TerrainObject : MonoBehaviour
         //     new TerrainNodeData{ x = 543 * GRAPH_AREA_LEN / 720  + offset, y = 581 * GRAPH_AREA_LEN / 720  + offset, size = 3 },
         // };
 
+        ColorUtil.ResetRandomHSV();
+
         networkData.ParseFromString();
 
         _parsedFileData = JsonUtility.FromJson<FootballFileData>(networkData.dataFile.text);
