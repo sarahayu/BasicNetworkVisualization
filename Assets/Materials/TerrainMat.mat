@@ -8,7 +8,7 @@ Material:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_Name: TerrainMat
-  m_Shader: {fileID: 4800000, guid: d55d2c308b6d5fe4ab994a7f8c05fe90, type: 3}
+  m_Shader: {fileID: 4800000, guid: 1e8f401599ee51d439ef34e9a2ea5dfb, type: 3}
   m_ShaderKeywords: _NORMALMAP
   m_LightmapFlags: 4
   m_EnableInstancingVariants: 0
