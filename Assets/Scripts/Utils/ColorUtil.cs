@@ -1,3 +1,7 @@
+/**
+ * File Description: Utility functions to help with color operations
+ **/
+
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;

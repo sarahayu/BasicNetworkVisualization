@@ -51,7 +51,7 @@ public class NetworkObject : MonoBehaviour
         int nodeIndex = 0;
         foreach (var node in networkData.nodes)
         {
-            var interactableNodeP = Instantiate(nodePrefab, new Vector3(node.x, node.y, node.z) * 3, Quaternion.identity);
+            var interactableNodeP = Instantiate(nodePrefab, new Vector3(node.pos3D[0], node.pos3D[1], node.pos3D[2]) * 3, Quaternion.identity);
             interactableNodeP.GetComponent<NodeDisplay>().Init(this, node.color, node.name, nodeIndex);
             // interactableNodeP.GetComponent<Rigidbody>().detectCollisions = false;
             var nodeTransform = interactableNodeP.transform;
@@ -79,6 +79,7 @@ public class NetworkObject : MonoBehaviour
             if (link.value > max)
                 max = link.value;
 
+        // return;
         int linkIndex = 0;
         foreach (var link in networkData.links)
         {
@@ -222,7 +223,7 @@ public class NetworkObject : MonoBehaviour
             node.nodeObject.SetActive(true);
     }
 
-    public void Rearrange(int movedIndex)
+    public void RearrangeLinks(int movedIndex)
     {
         List<int> nodesWithMovedAsTarget = new List<int>();
         foreach (var link in nodeObjects[movedIndex].links)

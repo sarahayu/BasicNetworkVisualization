@@ -17,8 +17,11 @@ public class FootballNodeFileData
     public int height;
     public int idx;
     public string label;
+    public string color;
     public int ancIdx;
     public int[] childIdx;
+    public float[] pos2D;
+    public float[] pos3D;
 }
 
 [Serializable]

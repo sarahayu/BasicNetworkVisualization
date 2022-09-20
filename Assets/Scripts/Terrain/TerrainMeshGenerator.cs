@@ -11,8 +11,6 @@ using TriangleNet.Topology;
 public class TerrainMeshGenerator
 {
     TerrainGraphData _graph;
-    int _graphWidth;
-    int _graphHeight;
     HeightMap _heightMap;
     float _meshHeight;
     int _meshWidth;
@@ -21,11 +19,9 @@ public class TerrainMeshGenerator
     float _radius;
     bool _useNormalMap; // unused for now
 
-    public TerrainMeshGenerator(TerrainGraphData graph, int graphWidth, int graphHeight, HeightMap heightMap, float meshHeight, int meshWidth, int meshLength, int subdivide, float radius, bool useNormalMap)
+    public TerrainMeshGenerator(TerrainGraphData graph, HeightMap heightMap, float meshHeight, int meshWidth, int meshLength, int subdivide, float radius, bool useNormalMap)
     {
         _graph = graph;
-        _graphWidth = graphWidth;
-        _graphHeight = graphHeight;
         _heightMap = heightMap;
         _meshHeight = meshHeight;
         _meshWidth = meshWidth;
@@ -37,19 +33,12 @@ public class TerrainMeshGenerator
 
     public Mesh GenerateFromGraph()
     {
-        var points = new List<Vertex>();
-        
-        TerrainUtil.PopulateCirclePoints(points, _meshWidth, _meshLength, _subdivide);
-        TerrainUtil.PopulateRidgePoints(points, _graph, _graphWidth, _graphHeight, _meshWidth, _meshLength, _subdivide);
-    
-        // Choose triangulator: Incremental, SweepLine or Dwyer.
-        var triangulator = new Dwyer();
-
-        // Generate a default mesher.
-        var mesher = new GenericMesher(triangulator);
-        
-        // Generate mesh.
-        var mesh = mesher.Triangulate(points);
+        var mesh = new TerrainMeshPlotter(
+            graph: _graph,
+            meshWidth: _meshWidth,
+            meshLength: _meshLength,
+            subdivide: _subdivide
+        ).GenerateMesh();
 
         return CreateMeshFromTriangles(mesh.Triangles, _heightMap, _meshHeight, _meshWidth, _meshLength, _radius, _useNormalMap);
     }

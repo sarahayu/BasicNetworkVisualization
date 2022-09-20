@@ -1,3 +1,7 @@
+/**
+ * File Description: HSV class to keep colors HSV instead of RGB
+ **/
+
 using UnityEngine;
 
 public class HSV

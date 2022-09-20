@@ -1,3 +1,7 @@
+/**
+ * File Description: Utility functions for simplifying repeated math ops
+ **/
+
 using System;
 using System.Collections;
 using System.Collections.Generic;
@@ -142,25 +146,56 @@ public static class MathUtil
     }
 
     // https://stackoverflow.com/a/28572551
-    public static void populateSunflower(List<Vector3> points, float radius, int n, int alpha)
+    public static void PopulateSunflowerPoints(List<Vector3> points, float radius, int n, int alpha)
     {
         int b = (int)Math.Round(alpha * Mathf.Sqrt(n));
         float phi = (Mathf.Sqrt(5) + 1) / 2;
 
         for (int k = 1; k <= n; k++)
         {
-            float r = getSunflowerRad(k, n, b) * radius;
+            float r = _GetSunflowerRad(k, n, b) * radius;
             float theta = 2 * Mathf.PI * k / Mathf.Pow(phi, 2);
             points.Add(new Vector3(r * Mathf.Cos(theta), 0, r * Mathf.Sin(theta)));
         }
     }
 
-    static float getSunflowerRad(int k, int n, int b)
+    static float _GetSunflowerRad(int k, int n, int b)
     {
         if (k > n - b)
             return 1f;
 
         return Mathf.Sqrt((k - 0.5f) / (n - (b + 1f) / 2f));
+    }
+
+    // KISS, generalize later...
+    public static void Normalize2DPointsAsCircle<T>(Dictionary<T, float[]> pointMap, float padding = 0.05f)
+    {
+        float minX = Mathf.Infinity, maxX = Mathf.NegativeInfinity,
+            minY = Mathf.Infinity, maxY = Mathf.NegativeInfinity;
+        foreach (var points in pointMap.Values)
+        {
+            minX = Mathf.Min(minX, points[0]);
+            maxX = Mathf.Max(maxX, points[0]);
+            minY = Mathf.Min(minY, points[1]);
+            maxY = Mathf.Max(maxY, points[1]);
+        }
+
+        float firstBound = (2 - Mathf.Sqrt(2)) / 4 + padding, 
+            secondBound = 1 - firstBound;
+
+        foreach (var points in pointMap.Values)
+        {
+            points[0] = Mathf.Lerp(firstBound, secondBound, 
+                Mathf.InverseLerp(minX, maxX, points[0]));
+            points[1] = Mathf.Lerp(firstBound, secondBound, 
+                Mathf.InverseLerp(minY, maxY, points[1]));
+        }
+    }
+
+    // returns link weight as a percentage of the maximum possible number of links between two groups (which is the produce of the two group sizes)
+    public static float RelWeight(int linkWeight, int groupSize1, int groupSize2)
+    {
+        return (float)linkWeight / (groupSize1 * groupSize2);
     }
 }
 

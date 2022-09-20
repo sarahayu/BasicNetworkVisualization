@@ -22,7 +22,7 @@ public class TerrainGraphData
         return inOutline;
     }
 
-    public static TerrainGraphData CreateFromJSONData(NetworkData generalNetworkData, FootballFileData parsedFileData, float width, float height)
+    public static TerrainGraphData CreateFromJSONData(NetworkData generalNetworkData, FootballFileData parsedFileData, float width, float height, int maxLinks)
     {
         TerrainGraphData graphData = new TerrainGraphData();
         graphData.networkData = generalNetworkData;
@@ -37,6 +37,8 @@ public class TerrainGraphData
         Dictionary<int, int> groupDegs = new Dictionary<int, int>();
         // keeps track of group colors
         Dictionary<int, HSV> groupCols = new Dictionary<int, HSV>();
+        // keeps track of group pos
+        Dictionary<int, float[]> groupPos = new Dictionary<int, float[]>();
         // keeps track of index in groupSizes mapped to actual idx in json data
         List<int> groupIndToJsonIdx = new List<int>();
         // keep track of group links; Item1 = group1 index, Item2 = group2 index, Item3 = weight
@@ -49,6 +51,8 @@ public class TerrainGraphData
             {
                 groupSizes.Add(node.ancIdx, parsedFileData.nodes[node.ancIdx].childIdx.Length);
                 groupCols.Add(node.ancIdx, generalNetworkData.nodes[node.idx].color);
+                if (parsedFileData.nodes[node.ancIdx].pos2D != null)
+                    groupPos.Add(node.ancIdx, (float[])parsedFileData.nodes[node.ancIdx].pos2D.Clone());
             }
         }
 
@@ -94,30 +98,57 @@ public class TerrainGraphData
             }
         }
 
+        if (groupPos.Count != 0)
+            MathUtil.Normalize2DPointsAsCircle(groupPos);
+
         // make actual nodes in our terrain data and keep track of its index in graphData
         // the way we have it, distributing via sunflower means nodes near the back of the list will be rendered closer to rim of map
         // so let's sort so that those with highest degree are near the rim because this makes center of map looks less cluttered
         // (also then sort by height because why not)
         foreach (var idxAndDeg in groupDegs.OrderBy(_idxAndDeg => -_idxAndDeg.Value).ThenBy(_idxAndDeg => groupSizes[_idxAndDeg.Key]))
         {
-            graphData.nodes.Add(new TerrainNodeData { size = groupSizes[idxAndDeg.Key], idx = idxAndDeg.Key, color = groupCols[idxAndDeg.Key], parsedNode = parsedFileData.nodes[idxAndDeg.Key] });
+            graphData.nodes.Add(new TerrainNodeData { 
+                size = groupSizes[idxAndDeg.Key],
+                idx = idxAndDeg.Key,
+                color = groupCols[idxAndDeg.Key],
+                parsedNode = parsedFileData.nodes[idxAndDeg.Key],
+                x = groupPos.Count == 0 ? 0 : (int)(groupPos[idxAndDeg.Key][0] * width),
+                y = groupPos.Count == 0 ? 0 : (int)(groupPos[idxAndDeg.Key][1] * height),
+            });
             groupIndToJsonIdx.Add(idxAndDeg.Key);
 
         }
-        // distribute nodes using sunflower points
-        float rad = Mathf.Max(width, height) / 2;
-        List<Vector3> points = new List<Vector3>();
-        MathUtil.populateSunflower(points, rad * 0.8f, groupSizes.Count, 1);
 
-        for (int i = 0; i < graphData.nodes.Count; i++)
+        if (groupPos.Count == 0)
         {
-            graphData.nodes[i].x = (int)(points[i].x + rad);
-            graphData.nodes[i].y = (int)(points[i].z + rad);
+            // distribute nodes using sunflower points
+            float rad = Mathf.Max(width, height) / 2;
+            List<Vector3> points = new List<Vector3>();
+            MathUtil.PopulateSunflowerPoints(points, rad * 0.8f, groupSizes.Count, 1);
+
+            for (int i = 0; i < graphData.nodes.Count; i++)
+            {
+                graphData.nodes[i].x = (int)(points[i].x + rad);
+                graphData.nodes[i].y = (int)(points[i].z + rad);
+            }
         }
 
-        // loop through groupLinks and create graph data links
-        foreach (var groupLink in groupLinks.Values)
+        if (groupLinks.Count > maxLinks)
         {
+            Debug.Log("Number of links exceeded MAX_LINKS " + maxLinks + "! Deleting smallest " + (groupLinks.Count - maxLinks) + " links...");
+        }
+
+        int numLinks = 0;
+
+        // loop through groupLinks and create graph data links
+        foreach (var groupLink in groupLinks.Values.OrderBy(_SrcTgtWgt => MathUtil.RelWeight(_SrcTgtWgt.Item3, groupSizes[_SrcTgtWgt.Item1], groupSizes[_SrcTgtWgt.Item2])))
+        {
+            numLinks++;
+            if (numLinks > maxLinks)
+            {
+                Debug.Log("Largest link deleted of relative weight " + MathUtil.RelWeight(groupLink.Item3, groupSizes[groupLink.Item1], groupSizes[groupLink.Item2]));
+                break;
+            }
             // unhash key to get idxs of source and target groups
             int sourceIdx = groupLink.Item1, targetIdx = groupLink.Item2;
             float weight = groupLink.Item3;

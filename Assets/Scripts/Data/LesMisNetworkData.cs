@@ -20,9 +20,11 @@ public class LesMisNetworkData : NetworkData
                 id = i,             // just use unique int as id for now
                 group = fileNode.group,
                 color = ColorUtil.TryGetHSV(fileNode.color),
-                x = fileNode.x,
-                y = fileNode.y,
-                z = fileNode.z,
+                pos3D = new float[] {
+                    fileNode.x,
+                    fileNode.y,
+                    fileNode.z
+                }
             };
         }
 

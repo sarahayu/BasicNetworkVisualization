@@ -16,19 +16,15 @@ public class HeightMap
     AnimationCurve _falloffShapeFunc;
     AnimationCurve _peakHeightFunc;
     AnimationCurve _slackFunc;
-    int _graphWidth;
-    int _graphHeight;
     bool _slackIsLevel;         // obsolete field, may remove later
 
-    float _graphMaxWeight = -1f;
-    float _graphMaxSize = -1f;
+    int _graphMaxWeight = -1;
+    int _graphMaxSize = -1;
 
-    public HeightMap(TerrainGraphData graph, int graphWidth, int graphHeight, float falloffDistance, 
+    public HeightMap(TerrainGraphData graph, float falloffDistance, 
         AnimationCurve falloffShapeFunc, AnimationCurve peakHeightFunc, AnimationCurve slackFunc, bool slackIsLevel)
     {
         _graph = graph;
-        _graphWidth = graphWidth;
-        _graphHeight = graphHeight;
         _falloffDistance = falloffDistance;
         _falloffShapeFunc = falloffShapeFunc;
         _peakHeightFunc = peakHeightFunc;
@@ -37,79 +33,48 @@ public class HeightMap
 
         calculateMaxes();
     }
-
-    // public float[,] GenerateFromGraph(TerrainGraphData graph)
-    // {
-    //     var heightMap = new float[_width, _height];
-    //     calculateMaxes(graph);
-    //     for (int y = 0; y < _height; y++)
-    //         for (int x = 0; x < _width; x++)
-    //         {
-    //             heightMap[x, y] = maxWeightAt(graph, x, y) * _scaleHeight;
-    //         }
-
-    //     // var blurred = MathUtil.gaussBlur_4(heightMap, 1);
-    //     return heightMap;
-    // }
-    Material _glMaterial;
-    RenderTexture _renderTexture;
-
     public Texture2D GenerateTextureHeight(int resX, int resY)
     {
-
-        var points = new List<Vertex>();
-        
-        TerrainUtil.PopulateCirclePoints(points, resX, resY, 40);
-        TerrainUtil.PopulateRidgePoints(points, _graph, _graphWidth, _graphHeight, resX, resY, 2);
-
-        var heights = new Dictionary<int, float>();
-        foreach (var point in points)
-        {
-            heights[(int)((int)point.y * resX + (int)point.x)] = MaxWeightAt((float)point.x / (resX - 1), (float)point.y / (resY - 1));
-            // heights.Add((int)(point.y * resX + point.x), MaxWeightAt((float)point.x / (resX - 1), (float)point.y / (resY - 1)));
-        }
+        Material glMaterial;
+        RenderTexture renderTexture;
     
-        // Choose triangulator: Incremental, SweepLine or Dwyer.
-        var triangulator = new Dwyer();
+        var meshPlotter = new TerrainMeshPlotter(
+            graph: _graph,
+            meshWidth: resX,
+            meshLength: resY,
+            subdivideSunflower: 40,
+            subdivideRidges: 2
+        );
 
-        // Generate a default mesher.
-        var mesher = new GenericMesher(triangulator);
-        
-        // Generate mesh.
-        var mesh = mesher.Triangulate(points);
+        var mesh = meshPlotter.GenerateMesh();
+
+        var heightsCache = new Dictionary<double, float>();
+        foreach (var point in meshPlotter.generatedPoints)
+        {
+            heightsCache[point.y * resX + point.x] 
+                = MaxWeightAt((float)point.x / (resX - 1), (float)point.y / (resY - 1));
+        }
 
         // setup
+
         var texture = new Texture2D(resX, resY);
         texture.wrapMode = TextureWrapMode.Clamp;
 
-        _glMaterial = new Material(Shader.Find("Hidden/Internal-Colored"));
-        _glMaterial.hideFlags = HideFlags.HideAndDontSave;
-        _glMaterial.shader.hideFlags = HideFlags.HideAndDontSave;
+        glMaterial = new Material(Shader.Find("Hidden/Internal-Colored"));
+        glMaterial.hideFlags = HideFlags.HideAndDontSave;
+        glMaterial.shader.hideFlags = HideFlags.HideAndDontSave;
 
-        // _glMaterial.SetInt("_SrcBlend", (int)UnityEngine.Rendering.BlendMode.One);
-        // _glMaterial.SetInt("_DstBlend", (int)UnityEngine.Rendering.BlendMode.Zero);
-
-        _renderTexture = RenderTexture.GetTemporary(resX, resY);
+        renderTexture = RenderTexture.GetTemporary(resX, resY);
         
-        RenderTexture.active = _renderTexture;
-       
-        GL.Clear( false, true, Color.black );
- 
-        texture.ReadPixels( new Rect( 0, 0, texture.width, texture.height ), 0, 0 );
-        texture.Apply();
- 
-        RenderTexture.active = null;
-        // end setup
+        RenderTexture.active = renderTexture;
 
+        // end setup
 
         // draw
        
-        RenderTexture.active = _renderTexture;
-       
-        // render GL stuff //
         GL.Clear( false, true, Color.black );      
         
-        _glMaterial.SetPass( 0 );
+        glMaterial.SetPass( 0 );
         GL.PushMatrix();
         GL.LoadPixelMatrix( 0, resX, resY, 0 );
         GL.Begin( GL.TRIANGLES );
@@ -117,28 +82,27 @@ public class HeightMap
         
         foreach (var triangle in mesh.Triangles)
         {
-            Vertex p0 = triangle.GetVertex(0), p1 = triangle.GetVertex(1), p2 = triangle.GetVertex(2);
-            float x0 = (float)p0.x, y0 = (float)p0.y,
-                x1 = (float)p1.x, y1 = (float)p1.y,
-                x2 = (float)p2.x, y2 = (float)p2.y;
-            // GL.Color( Color.white );
-            // GL.Vertex3( (float)resX / 2, (float)resY / 2, 0 );
-            if (!heights.ContainsKey((int)((int)y0 * resX + (int)x0))) continue;
-            if (!heights.ContainsKey((int)((int)y1 * resX + (int)x1))) continue;
-            if (!heights.ContainsKey((int)((int)y2 * resX + (int)x2))) continue;
-            GL.Color( Color.Lerp(Color.black, Color.white, heights[(int)((int)y0 * resX + (int)x0)]) );
-            GL.Vertex3( x0, resY - y0, 0 );
-            GL.Color( Color.Lerp(Color.black, Color.white, heights[(int)((int)y1 * resX + (int)x1)]) );
-            GL.Vertex3( x1, resY - y1, 0 );
-            GL.Color( Color.Lerp(Color.black, Color.white, heights[(int)((int)y2 * resX + (int)x2)]) );
-            GL.Vertex3( x2, resY - y2, 0 );
+            Vertex p0 = triangle.GetVertex(0), 
+                p1 = triangle.GetVertex(1), 
+                p2 = triangle.GetVertex(2);
+            double x0 = p0.x, y0 = p0.y,
+                x1 = p1.x, y1 = p1.y,
+                x2 = p2.x, y2 = p2.y;
+            double indP1 = y0 * resX + x0, 
+                indP2 = y1 * resX + x1, 
+                indP3 = y2 * resX + x2;
+
+            GL.Color( Color.Lerp(Color.black, Color.white, heightsCache[indP1]) );
+            GL.Vertex3( (float)x0, resY - (float)y0, 0 );
+            GL.Color( Color.Lerp(Color.black, Color.white, heightsCache[indP2]) );
+            GL.Vertex3( (float)x1, resY - (float)y1, 0 );
+            GL.Color( Color.Lerp(Color.black, Color.white, heightsCache[indP3]) );
+            GL.Vertex3( (float)x2, resY - (float)y2, 0 );
         }
 
         GL.End();
         GL.PopMatrix();
 
-        ////////////////
- 
         texture.ReadPixels( new Rect( 0, 0, texture.width, texture.height ), 0, 0 );
         texture.Apply();
  
@@ -146,36 +110,13 @@ public class HeightMap
 
         // end draw
 
-
-        // var heightVal = new float[resX * resY];
-
-        // for (int y = 0; y < resY; y++)
-        //     for (int x = 0; x < resX; x++)
-        //     {
-        //         heightVal[y * resX + x] = MaxWeightAt((float)x / (resX - 1), (float)y / (resY - 1));
-        //     }
-        
-        // float[] res = new float[resX * resX];
-            
-        // // MathUtil.gaussBlur_4(heightVal, res, resX, resY, 1);
-        
-        // var colors = new Color[resX * resY];
-
-        // for (int y = 0; y < resY; y++)
-        //     for (int x = 0; x < resX; x++)
-        //     {
-        //         colors[y * resX + x] = Color.Lerp(Color.black, Color.white, heightVal[y * resY + x]);
-        //     }
-
-        // texture.SetPixels(colors);
-        // texture.Apply();
-
         return texture;
     }
 
     public Texture2D GenerateTextureLines(int resX, int resY, float intensity)
     {
         var colorBit = new float[resX * resY];
+        float graphWidth = _graph.width, graphHeight = _graph.height;
 
         for (int y = 0; y < resY; y++)
             for (int x = 0; x < resX; x++)
@@ -192,12 +133,12 @@ public class HeightMap
             var first = _graph.nodes[source];
             var second = _graph.nodes[target];
 
-            int x1 = (int)Mathf.Floor((float)(first.x - 0) / _graphWidth * (resX - 1)), 
-                y1 = (int)Mathf.Floor((float)(first.y - 0) / _graphHeight * (resY - 1)), 
+            int x1 = (int)Mathf.Floor((float)(first.x - 0) / graphWidth * (resX - 1)), 
+                y1 = (int)Mathf.Floor((float)(first.y - 0) / graphHeight * (resY - 1)), 
                 size1 = first.size,
 
-                x2 = (int)Mathf.Floor((float)(second.x - 0) / _graphWidth * (resX - 1)), 
-                y2 = (int)Mathf.Floor((float)(second.y - 0) / _graphHeight * (resY - 1)), 
+                x2 = (int)Mathf.Floor((float)(second.x - 0) / graphWidth * (resX - 1)), 
+                y2 = (int)Mathf.Floor((float)(second.y - 0) / graphHeight * (resY - 1)), 
                 size2 = second.size;
                 
             int dist_x = Math.Abs(x1 - x2), dist_y = Math.Abs(y1 - y2);
@@ -252,11 +193,11 @@ public class HeightMap
             if (node.size > _graphMaxSize) _graphMaxSize = node.size;
     }
 
-    float ridgeFunc(float size1, float size2, float weight, float offset)
+    float ridgeFunc(int size1, int size2, int weight, float offset)
     {
-        float lerpedHeight1 = _peakHeightFunc.Evaluate((size1 - 1) / (_graphMaxSize - 1));
-        float lerpedHeight2 = _peakHeightFunc.Evaluate((size2 - 1) / (_graphMaxSize - 1));
-        float relWeight = weight / (size1 * size2);
+        float lerpedHeight1 = _peakHeightFunc.Evaluate((float)(size1 - 1) / (_graphMaxSize - 1));
+        float lerpedHeight2 = _peakHeightFunc.Evaluate((float)(size2 - 1) / (_graphMaxSize - 1));
+        float relWeight = MathUtil.RelWeight(weight, size1, size2);
         return Mathf.Max(0.01f, Mathf.Lerp(0, 1, (MathUtil.clerp(lerpedHeight1, lerpedHeight2, 1 - _slackFunc.Evaluate(relWeight), offset))));
     }
 
@@ -267,7 +208,7 @@ public class HeightMap
 
     public float MaxWeightAt(float ratioX, float ratioY)
     {
-        float x = ratioX * (_graphWidth), y = ratioY * (_graphHeight);
+        float x = ratioX * _graph.width, y = ratioY * _graph.height;
         var maxWeight = 0f;
         foreach (var link in _graph.links)
         {

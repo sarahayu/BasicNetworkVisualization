@@ -32,6 +32,7 @@ public class TerrainObject : MonoBehaviour
     public AnimationCurve slackFunc;
     /* public */ bool slackIsLevel;         // obsolete field, may remove later
     public float curvatureRadius = 100f;
+    public int maxNumLinks = 300;
     public Transform parent;
 
     FootballFileData _parsedFileData;
@@ -56,6 +57,7 @@ public class TerrainObject : MonoBehaviour
         transform.parent = parent;
 
         Reset();
+        GenerateTerrainLowQuality();
         ToggleAlbedoLines();
         ToggleHeightMap();
         ToggleNormalMap();
@@ -111,40 +113,15 @@ public class TerrainObject : MonoBehaviour
 
     public void Reset()
     {
-        // var graph = new TerrainGraphData();
-        // graph.links = new List<TerrainLinkData> {
-        //     new TerrainLinkData{ source = 0, target = 2, weight = 1 },
-        //     new TerrainLinkData{ source = 1, target = 2, weight = 2 },
-        //     new TerrainLinkData{ source = 1, target = 3, weight = 1 },
-        //     new TerrainLinkData{ source = 2, target = 3, weight = 3 },
-        //     new TerrainLinkData{ source = 2, target = 4, weight = 2 },
-        //     new TerrainLinkData{ source = 3, target = 4, weight = 2 },
-        //     new TerrainLinkData{ source = 4, target = 5, weight = 3 },
-        //     new TerrainLinkData{ source = 5, target = 6, weight = 1 },
-        // };
-
-        // int offset = (int)Mathf.Sqrt(Mathf.Pow(GRAPH_AREA_LEN, 2) / 2) - GRAPH_AREA_LEN / 2;
-        // graph.nodes = new List<TerrainNodeData> {
-        //     new TerrainNodeData{ x = 130 * GRAPH_AREA_LEN / 720  + offset, y = 132 * GRAPH_AREA_LEN / 720  + offset, size = 1 },
-        //     new TerrainNodeData{ x = 484 * GRAPH_AREA_LEN / 720  + offset, y = 77 * GRAPH_AREA_LEN / 720  + offset, size = 2 },
-        //     new TerrainNodeData{ x = 267 * GRAPH_AREA_LEN / 720  + offset, y = 213 * GRAPH_AREA_LEN / 720  + offset, size = 5 },
-        //     new TerrainNodeData{ x = 495 * GRAPH_AREA_LEN / 720  + offset, y = 268 * GRAPH_AREA_LEN / 720  + offset, size = 4 },
-        //     new TerrainNodeData{ x = 171 * GRAPH_AREA_LEN / 720  + offset, y = 439 * GRAPH_AREA_LEN / 720  + offset, size = 3 },
-        //     new TerrainNodeData{ x = 276 * GRAPH_AREA_LEN / 720  + offset, y = 600 * GRAPH_AREA_LEN / 720  + offset, size = 1 },
-        //     new TerrainNodeData{ x = 543 * GRAPH_AREA_LEN / 720  + offset, y = 581 * GRAPH_AREA_LEN / 720  + offset, size = 3 },
-        // };
-
         ColorUtil.ResetRandomHSV();
 
         networkData.ParseFromString();
 
         _parsedFileData = JsonUtility.FromJson<FootballFileData>(networkData.dataFile.text);
-        _graph = TerrainGraphData.CreateFromJSONData(networkData, _parsedFileData, (int)Mathf.Sqrt(Mathf.Pow(GRAPH_AREA_LEN, 2) * 2), (int)Mathf.Sqrt(Mathf.Pow(GRAPH_AREA_LEN, 2) * 2));
+        _graph = TerrainGraphData.CreateFromJSONData(networkData, _parsedFileData, (int)Mathf.Sqrt(Mathf.Pow(GRAPH_AREA_LEN, 2) * 2), (int)Mathf.Sqrt(Mathf.Pow(GRAPH_AREA_LEN, 2) * 2), maxNumLinks);
 
         _heightMap = new HeightMap(
             graph: _graph,
-            graphWidth: (int)Mathf.Sqrt(Mathf.Pow(GRAPH_AREA_LEN, 2) * 2), 
-            graphHeight: (int)Mathf.Sqrt(Mathf.Pow(GRAPH_AREA_LEN, 2) * 2),
             falloffDistance: falloff * GRAPH_AREA_LEN, 
             falloffShapeFunc: falloffShapeFunc,
             peakHeightFunc: peakHeightFunc,
@@ -154,12 +131,10 @@ public class TerrainObject : MonoBehaviour
 
         _meshGenerator = new TerrainMeshGenerator(
             graph: _graph,
-            graphWidth: (int)Mathf.Sqrt(Mathf.Pow(GRAPH_AREA_LEN, 2) * 2), 
-            graphHeight: (int)Mathf.Sqrt(Mathf.Pow(GRAPH_AREA_LEN, 2) * 2),
             heightMap: _heightMap, 
             meshHeight: scaleHeight, 
-            meshWidth: (int)Mathf.Sqrt(Mathf.Pow(GRAPH_AREA_LEN, 2) * 2), 
-            meshLength: (int)Mathf.Sqrt(Mathf.Pow(GRAPH_AREA_LEN, 2) * 2),
+            meshWidth: (int)_graph.width, 
+            meshLength: (int)_graph.height,
             subdivide: subdivide,
             radius: curvatureRadius,
             useNormalMap: false
@@ -306,7 +281,7 @@ public class TerrainObject : MonoBehaviour
             GenerateTerrainLowQuality();
 
         if (_nodeColTex == null)
-            _nodeColTex = TextureUtil.GenerateNodeColsFromGraph(_graph, _heightMap, TEX_RES_ALBEDO, TEX_RES_ALBEDO);
+            _nodeColTex = TerrainTextureUtil.GenerateNodeColsFromGraph(_graph, _heightMap, TEX_RES_ALBEDO, TEX_RES_ALBEDO);
 
     }
 }

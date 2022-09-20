@@ -24,9 +24,8 @@ public class NodeData
     public int id;
     public int group;
     public HSV color;
-    public float x;
-    public float y;
-    public float z;
+    public float[] pos3D;
+    public float[] pos2D;
     public bool active;
 }
 
