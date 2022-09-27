@@ -35,6 +35,8 @@ public class TerrainObject : MonoBehaviour
     public int maxNumLinks = 300;
     public Transform parent;
 
+    public TextMeshPro debugDisplay;
+
     FootballFileData _parsedFileData;
     TerrainGraphData _graph;
     TerrainMeshGenerator _meshGenerator;
@@ -45,8 +47,7 @@ public class TerrainObject : MonoBehaviour
     Texture2D _normalTex = null;
     Texture2D _nodeColTex = null;
     Texture2D _selectionTex = null;
-    bool _rightGripPressed = false;
-    bool _leftGripPressed = false;
+    bool _inputTracerStarted = false;
 
 
     public void Start()
@@ -66,35 +67,29 @@ public class TerrainObject : MonoBehaviour
         GetMeshMaterial().SetTexture("_SelectionTex", _selectionTex);
     }
 
-    public void ControllerTriggerPressRight()
+    public void HandleInputTracerPress()
     {
-        _rightGripPressed = true;
+        _inputTracerStarted = true;
     }
 
-    public void ControllerTriggerReleaseRight()
+    public void HandleInputTracerRelease()
     {
-        _rightGripPressed = false;
+        _inputTracerStarted = false;
         _terrainOutline.ConnectAndUpdate();
         OnSelected.Invoke(new SelectionEventData() {
             groupsSelected = _graph.GetContainedInOutline(_terrainOutline)
         });
     }
 
-    public void ControllerTriggerPressleft()
+    public void HandleInputClearCanvasPress()
     {
-        _leftGripPressed = true;
         _terrainOutline.ClearPoints();
         OnDeselected.Invoke(new DeselectionEventData());
     }
 
-    public void ControllerTriggerReleaseleft()
-    {
-        _leftGripPressed = false;
-    }
-
     public void FixedUpdate()
     {
-        if (_rightGripPressed)
+        if (_inputTracerStarted)
         {
             var sourcePos = laserBox.position - laserBox.forward * laserBox.localScale.z / 2;
             Ray ray = new Ray(sourcePos, laserBox.forward);
