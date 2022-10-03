@@ -9,14 +9,14 @@ using TriangleNet.Topology;
 
 public class TerrainMeshPlotter
 {
-    TerrainGraphData _graph;
+    TerrainGraph _graph;
     int _meshWidth;
     int _meshLength;
     int _subdivideSunflower;
     int _subdivideRidges;
     public List<Vertex> generatedPoints;        // make this public for convenience
 
-    public TerrainMeshPlotter(TerrainGraphData graph, int meshWidth, int meshLength, int subdivide = -1, int subdivideSunflower = -1, int subdivideRidges = -1)
+    public TerrainMeshPlotter(TerrainGraph graph, int meshWidth, int meshLength, int subdivide = -1, int subdivideSunflower = -1, int subdivideRidges = -1)
     {
         _graph = graph;
         _meshWidth = meshWidth;

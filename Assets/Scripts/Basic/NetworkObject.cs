@@ -22,7 +22,7 @@ class IndexedLink
 
 public class NetworkObject : MonoBehaviour
 {
-    public NetworkData networkData;
+    public SharedNetworkData networkData;
     public GameObject nodePrefab;
     // public Camera worldCamera;
     public float minLinkThickness = 0.01f;

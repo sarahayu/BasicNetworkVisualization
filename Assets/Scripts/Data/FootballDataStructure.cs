@@ -6,12 +6,12 @@ using UnityEngine;
 [Serializable]
 public class FootballFileData
 {
-    public FootballNodeFileData[] nodes;
-    public FootballLinkFileData[] links;
+    public FootballFileDataNode[] nodes;
+    public FootballFileDataLink[] links;
 }
 
 [Serializable]
-public class FootballNodeFileData
+public class FootballFileDataNode
 {
     public bool virtualNode;
     public int height;
@@ -25,7 +25,7 @@ public class FootballNodeFileData
 }
 
 [Serializable]
-public class FootballLinkFileData
+public class FootballFileDataLink
 {
     public int sourceIdx;
     public int targetIdx;

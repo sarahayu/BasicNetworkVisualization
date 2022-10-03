@@ -10,7 +10,7 @@ using TriangleNet.Topology;
 
 public class TerrainMeshGenerator
 {
-    TerrainGraphData _graph;
+    TerrainGraph _graph;
     HeightMap _heightMap;
     float _meshHeight;
     int _meshWidth;
@@ -19,7 +19,7 @@ public class TerrainMeshGenerator
     float _radius;
     bool _useNormalMap; // unused for now
 
-    public TerrainMeshGenerator(TerrainGraphData graph, HeightMap heightMap, float meshHeight, int meshWidth, int meshLength, int subdivide, float radius, bool useNormalMap)
+    public TerrainMeshGenerator(TerrainGraph graph, HeightMap heightMap, float meshHeight, int meshWidth, int meshLength, int subdivide, float radius, bool useNormalMap)
     {
         _graph = graph;
         _heightMap = heightMap;

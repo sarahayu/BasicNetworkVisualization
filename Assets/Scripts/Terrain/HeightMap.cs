@@ -11,7 +11,7 @@ using TriangleNet.Topology;
 
 public class HeightMap
 {
-    TerrainGraphData _graph;
+    TerrainGraph _graph;
     float _falloffDistance;
     AnimationCurve _falloffShapeFunc;
     AnimationCurve _peakHeightFunc;
@@ -21,7 +21,7 @@ public class HeightMap
     int _graphMaxWeight = -1;
     int _graphMaxSize = -1;
 
-    public HeightMap(TerrainGraphData graph, float falloffDistance, 
+    public HeightMap(TerrainGraph graph, float falloffDistance, 
         AnimationCurve falloffShapeFunc, AnimationCurve peakHeightFunc, AnimationCurve slackFunc, bool slackIsLevel)
     {
         _graph = graph;

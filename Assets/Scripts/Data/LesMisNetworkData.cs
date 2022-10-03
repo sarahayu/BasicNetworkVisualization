@@ -2,7 +2,7 @@ using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 
-public class LesMisNetworkData : NetworkData
+public class LesMisNetworkData : SharedNetworkData
 {
     public override void ParseFromString()
     {

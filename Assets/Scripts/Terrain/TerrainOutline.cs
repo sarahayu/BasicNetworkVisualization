@@ -9,14 +9,21 @@ using TriangleNet.Topology;
 
 public class TerrainOutline
 {
-    Texture2D _outlineTex;
+    Texture2D _outlineTexture;
     List<Vertex> _outlineVertices = new List<Vertex>();      // of type Vertex to make Delauney convenient
     Material _glMaterial;
     RenderTexture _renderTexture;
 
+    public Texture2D OutlineTexture
+    {
+        get { return _outlineTexture; }
+    }
+
     public TerrainOutline(Texture2D outlineTex)
     {
-        _outlineTex = outlineTex;
+        _outlineTexture = outlineTex;
+        _outlineTexture.wrapMode = TextureWrapMode.Clamp;       // make sure tex is set to clamp
+
         _glMaterial = new Material(Shader.Find("Hidden/Internal-Colored"));
         _glMaterial.hideFlags = HideFlags.HideAndDontSave;
         _glMaterial.shader.hideFlags = HideFlags.HideAndDontSave;
@@ -25,7 +32,7 @@ public class TerrainOutline
         _glMaterial.SetInt("_SrcBlend", (int)UnityEngine.Rendering.BlendMode.One);
         _glMaterial.SetInt("_DstBlend", (int)UnityEngine.Rendering.BlendMode.Zero);
 
-        _renderTexture = RenderTexture.GetTemporary(_outlineTex.width, _outlineTex.height);
+        _renderTexture = RenderTexture.GetTemporary(_outlineTexture.width, _outlineTexture.height);
 
         ClearPoints();
     }
@@ -33,13 +40,13 @@ public class TerrainOutline
     // https://alessandrotironigamedev.com/2019/04/02/using-unity-low-level-graphics-api-to-draw-custom-charts/
     public void AddPointAndUpdate(Vector2 pos)
     {
-        int pixX = (int)(pos.x * _outlineTex.width), pixY = (int)(pos.y * _outlineTex.height);
+        int pixX = (int)(pos.x * _outlineTexture.width), pixY = (int)(pos.y * _outlineTexture.height);
         _outlineVertices.Add(new Vertex(pixX, pixY));
         
         if (_outlineVertices.Count == 1)
         {
-            _outlineTex.SetPixel(pixX, _outlineTex.height - pixY, new Color(1, 1, 1, 0));
-            _outlineTex.Apply();
+            _outlineTexture.SetPixel(pixX, _outlineTexture.height - pixY, new Color(1, 1, 1, 0));
+            _outlineTexture.Apply();
             return;
         }
 
@@ -49,7 +56,7 @@ public class TerrainOutline
         
         _glMaterial.SetPass( 0 );
         GL.PushMatrix();
-        GL.LoadPixelMatrix( 0, _outlineTex.width, _outlineTex.height, 0 );
+        GL.LoadPixelMatrix( 0, _outlineTexture.width, _outlineTexture.height, 0 );
         GL.Begin( GL.LINE_STRIP );
         GL.Color( new Color( 1f, 1f, 1f, 0f ) );
         foreach (var vert in _outlineVertices)
@@ -57,19 +64,20 @@ public class TerrainOutline
         GL.End();
         GL.PopMatrix();
  
-        _outlineTex.ReadPixels( new Rect( 0, 0, _outlineTex.width, _outlineTex.height ), 0, 0 );
-        _outlineTex.Apply();
+        _outlineTexture.ReadPixels( new Rect( 0, 0, _outlineTexture.width, _outlineTexture.height ), 0, 0 );
+        _outlineTexture.Apply();
  
         RenderTexture.active = null;
     }
 
-    public void ConnectAndUpdate()
+    // returns true if valid selection area has been made
+    public bool ConnectAndUpdate()
     {
         // not even points for an outline, reset
         if (_outlineVertices.Count < 3)
         {
             ClearPoints();
-            return;
+            return false;
         }
 
         // have to copy to new List???? Triangle.NET is caching list somehow...?
@@ -88,7 +96,7 @@ public class TerrainOutline
         
         _glMaterial.SetPass( 0 );
         GL.PushMatrix();
-        GL.LoadPixelMatrix( 0, _outlineTex.width, _outlineTex.height, 0 );
+        GL.LoadPixelMatrix( 0, _outlineTexture.width, _outlineTexture.height, 0 );
         GL.Begin( GL.TRIANGLES );
         GL.Color( Color.white );
         foreach (var triangle in mesh.Triangles)
@@ -106,10 +114,12 @@ public class TerrainOutline
 
         ////////////////
  
-        _outlineTex.ReadPixels( new Rect( 0, 0, _outlineTex.width, _outlineTex.height ), 0, 0 );
-        _outlineTex.Apply();
+        _outlineTexture.ReadPixels( new Rect( 0, 0, _outlineTexture.width, _outlineTexture.height ), 0, 0 );
+        _outlineTexture.Apply();
  
         RenderTexture.active = null;
+
+        return true;
     }
 
     public void ClearPoints()
@@ -118,12 +128,10 @@ public class TerrainOutline
         ClearColor(new Color(0, 0, 0, 0));
     }
 
+    // not being used right now
     public bool PointInOutline(Vector2 texPos)
     {
-        // if pixel at outline is not gray, then it is in outline
-        // but for some reason gray (r,g,b=0.5) becomes (r,g,b=~0.498) so have to take error into account
-        // also I'd rather do "not gray" than "white" because pixel billinear might interp, and I'd like those even on border to count as in outline
-        return Mathf.Abs(_outlineTex.GetPixelBilinear(texPos.x, texPos.y).r - 0.5f) > 0.002;
+        return TextureUtil.IsWhite(_outlineTexture, texPos);
     }
 
     void ClearColor(Color color)
@@ -132,8 +140,8 @@ public class TerrainOutline
        
         GL.Clear( false, true, color );
  
-        _outlineTex.ReadPixels( new Rect( 0, 0, _outlineTex.width, _outlineTex.height ), 0, 0 );
-        _outlineTex.Apply();
+        _outlineTexture.ReadPixels( new Rect( 0, 0, _outlineTexture.width, _outlineTexture.height ), 0, 0 );
+        _outlineTexture.Apply();
  
         RenderTexture.active = null;
     }

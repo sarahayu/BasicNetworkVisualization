@@ -2,9 +2,9 @@ using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 
-// this should contain all the information we need about the Network shared between the main view and over view
+// this should contain all the information we need about the Network shared between the main view and terrain overview
 // TODO make this templated to allow for more flexibility??
-public abstract class NetworkData : MonoBehaviour
+public abstract class SharedNetworkData : MonoBehaviour
 {
     public TextAsset dataFile;
     public NodeData[] nodes;

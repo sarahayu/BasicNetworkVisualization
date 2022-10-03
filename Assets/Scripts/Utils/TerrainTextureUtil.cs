@@ -10,7 +10,7 @@ using UnityEngine;
 public static class TerrainTextureUtil
 {
     // need heightmap for converting node weight to height
-    public static Texture2D GenerateNodeColsFromGraph(TerrainGraphData graph, HeightMap heightMap, int resX, int resY)
+    public static Texture2D GenerateNodeColsFromGraph(TerrainGraph graph, HeightMap heightMap, int resX, int resY)
     {
         var colors = new Color[resX * resY];
         float pixToGraphCoord = graph.width / resX;

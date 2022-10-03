@@ -8,7 +8,11 @@ using System.Collections.Generic;
 using UnityEngine;
 
 public static class TextureUtil
-{    
+{
+    public static bool IsWhite(Texture2D tex, Vector2 texPos)
+    {
+        return tex.GetPixelBilinear(texPos.x, texPos.y).r == 1f;
+    }
     public static Texture2D GenerateNormalFromHeight(Texture2D heightMap, float scaleHeight, float meshRealWidth)
     {
         int width = heightMap.width, height = heightMap.height;

@@ -4,32 +4,36 @@ using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 
-public class TerrainGraphData
+public class TerrainGraph
 {
-    public NetworkData networkData;
-    public List<TerrainNodeData> nodes;
-    public List<TerrainLinkData> links;
+    public List<TerrainNode> nodes = new List<TerrainNode>();
+    public List<TerrainLink> links = new List<TerrainLink>();
     public float width;
     public float height;
+    float _maxLinks;
 
-    public List<NodeData> GetContainedInOutline(TerrainOutline outline)
+    public TerrainGraph(float width, float height, int maxLinks)
     {
-        List<NodeData> inOutline = new List<NodeData>();
+        this.width = width;
+        this.height = height;
+
+        _maxLinks = maxLinks;
+    }
+
+    // we take in Texture as parameter instead of TerrainOutline just so this can be generalizeable (anti-KISS? perhaps)
+    public List<int> GetNodeIdxsContainedInOutline(Texture2D outlineTex)
+    {
+        List<int> inOutline = new List<int>();
         foreach (var node in nodes)
-            if (outline.PointInOutline(new Vector2(node.x / width, node.y / height)))
+            if (TextureUtil.IsWhite(outlineTex, new Vector2(node.x / width, node.y / height)))
                 foreach (var childInd in node.parsedNode.childIdx)
-                    inOutline.Add(networkData.nodes[childInd]);
+                    inOutline.Add(childInd);
         return inOutline;
     }
 
-    public static TerrainGraphData CreateFromJSONData(NetworkData generalNetworkData, FootballFileData parsedFileData, float width, float height, int maxLinks)
+    // TODO refactor all of this
+    public void CreateFromJSONData(FootballFileData JSONData)
     {
-        TerrainGraphData graphData = new TerrainGraphData();
-        graphData.networkData = generalNetworkData;
-        graphData.nodes = new List<TerrainNodeData>();
-        graphData.links = new List<TerrainLinkData>();
-        graphData.width = width;
-        graphData.height = height;
 
         // keeps track of group sizes
         Dictionary<int, int> groupSizes = new Dictionary<int, int>();
@@ -45,25 +49,25 @@ public class TerrainGraphData
         Dictionary<string, Tuple<int, int, int>> groupLinks = new Dictionary<string, Tuple<int, int, int>>();
 
         // loop through json nodes and keep track of the groups made by leaf nodes
-        foreach (var node in parsedFileData.nodes)
+        foreach (var node in JSONData.nodes)
         {
             if (!node.virtualNode && !groupSizes.ContainsKey(node.ancIdx))
             {
-                groupSizes.Add(node.ancIdx, parsedFileData.nodes[node.ancIdx].childIdx.Length);
-                groupCols.Add(node.ancIdx, generalNetworkData.nodes[node.idx].color);
-                if (parsedFileData.nodes[node.ancIdx].pos2D != null)
-                    groupPos.Add(node.ancIdx, (float[])parsedFileData.nodes[node.ancIdx].pos2D.Clone());
+                groupSizes.Add(node.ancIdx, JSONData.nodes[node.ancIdx].childIdx.Length);
+                groupCols.Add(node.ancIdx, ColorUtil.TryGetHSV(node.color));
+                if (JSONData.nodes[node.ancIdx].pos2D != null)
+                    groupPos.Add(node.ancIdx, (float[])JSONData.nodes[node.ancIdx].pos2D.Clone());
             }
         }
 
         // loop through json links and bookkeep them to groupLinks, also find out group degrees
-        foreach (var link in parsedFileData.links)
+        foreach (var link in JSONData.links)
         {
             // check if the ancestor of the one of the link's source nodes is inside our groupSizes
             // (since both link nodes are presumably leaves, we only need to check one of them)
-            if (groupSizes.ContainsKey(parsedFileData.nodes[link.sourceIdx].ancIdx))
+            if (groupSizes.ContainsKey(JSONData.nodes[link.sourceIdx].ancIdx))
             {
-                int group1 = parsedFileData.nodes[link.sourceIdx].ancIdx, group2 = parsedFileData.nodes[link.targetIdx].ancIdx;
+                int group1 = JSONData.nodes[link.sourceIdx].ancIdx, group2 = JSONData.nodes[link.targetIdx].ancIdx;
 
                 if (group1 != group2)
                 {
@@ -77,7 +81,7 @@ public class TerrainGraphData
                     }
 
                     // create hash of two group idxs in order to make sure links between two groups always have the same entry in groupLinks
-                    var hash = parsedFileData.nodes[group1].label.ToString() + "-" + parsedFileData.nodes[group2].label.ToString();
+                    var hash = JSONData.nodes[group1].label.ToString() + "-" + JSONData.nodes[group2].label.ToString();
 
                     // increment link weight
                     if (!groupLinks.ContainsKey(hash))
@@ -107,11 +111,11 @@ public class TerrainGraphData
         // (also then sort by height because why not)
         foreach (var idxAndDeg in groupDegs.OrderBy(_idxAndDeg => -_idxAndDeg.Value).ThenBy(_idxAndDeg => groupSizes[_idxAndDeg.Key]))
         {
-            graphData.nodes.Add(new TerrainNodeData { 
+            nodes.Add(new TerrainNode { 
                 size = groupSizes[idxAndDeg.Key],
                 idx = idxAndDeg.Key,
                 color = groupCols[idxAndDeg.Key],
-                parsedNode = parsedFileData.nodes[idxAndDeg.Key],
+                parsedNode = JSONData.nodes[idxAndDeg.Key],
                 x = groupPos.Count == 0 ? 0 : (int)(groupPos[idxAndDeg.Key][0] * width),
                 y = groupPos.Count == 0 ? 0 : (int)(groupPos[idxAndDeg.Key][1] * height),
             });
@@ -126,16 +130,16 @@ public class TerrainGraphData
             List<Vector3> points = new List<Vector3>();
             MathUtil.PopulateSunflowerPoints(points, rad * 0.8f, groupSizes.Count, 1);
 
-            for (int i = 0; i < graphData.nodes.Count; i++)
+            for (int i = 0; i < nodes.Count; i++)
             {
-                graphData.nodes[i].x = (int)(points[i].x + rad);
-                graphData.nodes[i].y = (int)(points[i].z + rad);
+                nodes[i].x = (int)(points[i].x + rad);
+                nodes[i].y = (int)(points[i].z + rad);
             }
         }
 
-        if (groupLinks.Count > maxLinks)
+        if (groupLinks.Count > _maxLinks)
         {
-            Debug.Log("Number of links exceeded MAX_LINKS " + maxLinks + "! Deleting smallest " + (groupLinks.Count - maxLinks) + " links...");
+            Debug.Log("Number of links exceeded MAX_LINKS " + _maxLinks + "! Deleting smallest " + (groupLinks.Count - _maxLinks) + " links...");
         }
 
         int numLinks = 0;
@@ -144,7 +148,7 @@ public class TerrainGraphData
         foreach (var groupLink in groupLinks.Values.OrderBy(_SrcTgtWgt => MathUtil.RelWeight(_SrcTgtWgt.Item3, groupSizes[_SrcTgtWgt.Item1], groupSizes[_SrcTgtWgt.Item2])))
         {
             numLinks++;
-            if (numLinks > maxLinks)
+            if (numLinks > _maxLinks)
             {
                 Debug.Log("Largest link deleted of relative weight " + MathUtil.RelWeight(groupLink.Item3, groupSizes[groupLink.Item1], groupSizes[groupLink.Item2]));
                 break;
@@ -152,28 +156,40 @@ public class TerrainGraphData
             // unhash key to get idxs of source and target groups
             int sourceIdx = groupLink.Item1, targetIdx = groupLink.Item2;
             float weight = groupLink.Item3;
-            graphData.links.Add(new TerrainLinkData { 
+            links.Add(new TerrainLink { 
                 source = groupIndToJsonIdx.IndexOf(sourceIdx), 
                 target = groupIndToJsonIdx.IndexOf(targetIdx), 
                 weight = (int)weight,
                 });
         }
-
-        return graphData;
     }
 }
 
-// wrapper for parsed node data
-public class TerrainNodeData
+// for specifying what data property maps to terrain peak height (note that peaks represent GROUPS of nodes)
+enum QuantifiablePropertyNode
 {
-    public FootballNodeFileData parsedNode;
+    SIZE,
+    INTRACONNECTEDNESS,
+}
+
+// for specifying what data property maps to terrain edge slackness
+enum QuantifiablePropertyEdge
+{
+    INTERCONNECTEDNESS_RELATIVE_PRODUCT,            // # of connections / max # of connections possible between the two groups
+    INTERCONNECTEDNESS_RELATIVE_MAX,            // # of connections / max # of nodes in either group
+}
+
+// wrapper for parsed node data
+public class TerrainNode
+{
+    public FootballFileDataNode parsedNode;
     public int x, y;
     public int size;
     public int idx;     // idx of ancestor node that owns this group
     public HSV color;
 }
 
-public class TerrainLinkData
+public class TerrainLink
 {
     public int source;
     public int target;

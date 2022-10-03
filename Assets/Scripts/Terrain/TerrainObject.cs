@@ -14,7 +14,7 @@ public class TerrainObject : MonoBehaviour
     public SelectionEvent OnSelected;
     public DeselectionEvent OnDeselected;
 
-    public NetworkData networkData;
+    public SharedNetworkData networkData;
 
     public bool autoUpdate = false;
 
@@ -37,8 +37,8 @@ public class TerrainObject : MonoBehaviour
 
     public TextMeshPro debugDisplay;
 
-    FootballFileData _parsedFileData;
-    TerrainGraphData _graph;
+    FootballFileData _JSONNetworkData;
+    TerrainGraph _graph;
     TerrainMeshGenerator _meshGenerator;
     TerrainOutline _terrainOutline;
     HeightMap _heightMap = null;
@@ -75,10 +75,14 @@ public class TerrainObject : MonoBehaviour
     public void HandleInputTracerRelease()
     {
         _inputTracerStarted = false;
-        _terrainOutline.ConnectAndUpdate();
-        OnSelected.Invoke(new SelectionEventData() {
-            groupsSelected = _graph.GetContainedInOutline(_terrainOutline)
-        });
+        if (_terrainOutline.ConnectAndUpdate()) 
+        {
+            var inOutline = _graph.GetNodeIdxsContainedInOutline(_terrainOutline.OutlineTexture);
+            var selectedNodes = networkData.nodes.Where(n => inOutline.Contains(n.id)).ToList();
+            OnSelected.Invoke(new SelectionEventData() {
+                groupsSelected = selectedNodes
+            });
+        }
     }
 
     public void HandleInputClearCanvasPress()
@@ -89,21 +93,7 @@ public class TerrainObject : MonoBehaviour
 
     public void FixedUpdate()
     {
-        if (_inputTracerStarted)
-        {
-            var sourcePos = laserBox.position - laserBox.forward * laserBox.localScale.z / 2;
-            Ray ray = new Ray(sourcePos, laserBox.forward);
-            RaycastHit hit;
-
-            if (meshCollider.Raycast(ray, out hit, Mathf.Infinity))
-            {
-                var worldCollPos = sourcePos + laserBox.forward * hit.distance;
-                var localPos = transform.InverseTransformPoint(worldCollPos);
-                var texPos = _meshGenerator.LocalToTexPos(localPos);
-
-                _terrainOutline.AddPointAndUpdate(texPos);
-            }    
-        }
+        CheckLaserIntersectsTerrain();
     }
 
     public void Reset()
@@ -112,9 +102,18 @@ public class TerrainObject : MonoBehaviour
 
         networkData.ParseFromString();
 
-        _parsedFileData = JsonUtility.FromJson<FootballFileData>(networkData.dataFile.text);
-        _graph = TerrainGraphData.CreateFromJSONData(networkData, _parsedFileData, (int)Mathf.Sqrt(Mathf.Pow(GRAPH_AREA_LEN, 2) * 2), (int)Mathf.Sqrt(Mathf.Pow(GRAPH_AREA_LEN, 2) * 2), maxNumLinks);
+        // get network data information from JSON
+        _JSONNetworkData = JsonUtility.FromJson<FootballFileData>(networkData.dataFile.text);
 
+        // get basic graph data from JSON spread over 2D width/height bounds
+        _graph = new TerrainGraph(
+            width: (int)Mathf.Sqrt(Mathf.Pow(GRAPH_AREA_LEN, 2) * 2), 
+            height: (int)Mathf.Sqrt(Mathf.Pow(GRAPH_AREA_LEN, 2) * 2), 
+            maxLinks: maxNumLinks
+        ); 
+        _graph.CreateFromJSONData(_JSONNetworkData);
+
+        // make heightmap from graph
         _heightMap = new HeightMap(
             graph: _graph,
             falloffDistance: falloff * GRAPH_AREA_LEN, 
@@ -124,6 +123,7 @@ public class TerrainObject : MonoBehaviour
             slackIsLevel: slackIsLevel
         );
 
+        // make mesh from heightmap
         _meshGenerator = new TerrainMeshGenerator(
             graph: _graph,
             heightMap: _heightMap, 
@@ -241,6 +241,25 @@ public class TerrainObject : MonoBehaviour
         // regenerate line tex every time, it's not computationally expensive and we might change line opacity often
         // if (_lineTex == null)
         _lineTex = _heightMap.GenerateTextureLines(TEX_RES_ALBEDO, TEX_RES_ALBEDO, lineColorIntensity);
+    }
+
+    void CheckLaserIntersectsTerrain()
+    {
+        if (_inputTracerStarted)
+        {
+            var sourcePos = laserBox.position - laserBox.forward * laserBox.localScale.z / 2;
+            Ray ray = new Ray(sourcePos, laserBox.forward);
+            RaycastHit hit;
+
+            if (meshCollider.Raycast(ray, out hit, Mathf.Infinity))
+            {
+                var worldCollPos = sourcePos + laserBox.forward * hit.distance;
+                var localPos = transform.InverseTransformPoint(worldCollPos);
+                var texPos = _meshGenerator.LocalToTexPos(localPos);
+
+                _terrainOutline.AddPointAndUpdate(texPos);
+            }    
+        }
     }
 
     Material GetMeshMaterial()
