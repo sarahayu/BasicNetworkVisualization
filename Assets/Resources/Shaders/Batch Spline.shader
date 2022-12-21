@@ -25,7 +25,7 @@ Shader "Custom/Batch Spline"
            
 
             #include "UnityCG.cginc"
-			#include "BSplineData.cginc"
+			#include "Spline Data.cginc"
 
             float _LineWidth; // Used to adjust the line thickness
 
