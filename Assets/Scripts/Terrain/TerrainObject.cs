@@ -11,31 +11,69 @@ public class TerrainObject : MonoBehaviour
     const int TEX_RES_NORMAL = 480;
     const int TEX_RES_ALBEDO = 1280;
 
-    public SelectionEvent OnSelected;
-    public DeselectionEvent OnDeselected;
 
-    public SharedNetworkData networkData;
+    [SerializeField]
+    SelectionEvent _onSelected;
+
+    [SerializeField]
+    DeselectionEvent _onDeselected;
+
+
+    [SerializeField]
+    SharedNetworkData _networkData;
+
 
     public bool autoUpdate = false;
 
-    public MeshFilter meshFilter;
-    public MeshRenderer meshRenderer;
-    public MeshCollider meshCollider;
-    public Transform laserBox;
 
-    public float scaleHeight = 50f;
-    public float falloff = 1f;
-    public int subdivide = 1;
-    public float lineColorIntensity = 0.2f;
-    public AnimationCurve falloffShapeFunc;
-    public AnimationCurve peakHeightFunc;
-    public AnimationCurve slackFunc;
-    /* public */ bool slackIsLevel;         // obsolete field, may remove later
-    public float curvatureRadius = 100f;
-    public int maxNumLinks = 300;
-    public Transform parent;
+    [SerializeField]
+    MeshFilter _meshFilter;
 
-    public TextMeshPro debugDisplay;
+    [SerializeField]
+    MeshRenderer _meshRenderer;
+
+    [SerializeField]
+    MeshCollider _meshCollider;
+
+    [SerializeField]
+    Transform _laserBox;
+
+
+    [SerializeField]
+    float _scaleHeight = 50f;
+
+    [SerializeField]
+    float _falloff = 1f;
+
+    [SerializeField]
+    int _subdivide = 1;
+
+    [SerializeField]
+    float _lineColorIntensity = 0.2f;
+
+    [SerializeField]
+    AnimationCurve _falloffShapeFunc = AnimationCurve.Linear(0, 0, 1, 1);
+
+    [SerializeField]
+    AnimationCurve _peakHeightFunc = AnimationCurve.Linear(0, 0, 1, 1);
+
+    [SerializeField]
+    AnimationCurve _slackFunc = AnimationCurve.Linear(0, 0.5f, 1, 1);
+
+    bool _slackIsLevel;         // obsolete field, may remove later
+
+    [SerializeField]
+    float _curvatureRadius = 100f;
+
+    [SerializeField]
+    int _maxNumLinks = 300;
+
+    [SerializeField]
+    Transform _parent;
+
+
+    [SerializeField]
+    TextMeshPro _debugDisplay;
 
     FootballFileData _JSONNetworkData;
     TerrainGraph _graph;
@@ -49,13 +87,12 @@ public class TerrainObject : MonoBehaviour
     Texture2D _selectionTex = null;
     bool _inputTracerStarted = false;
 
-
-    public void Start()
+    public void Awake()
     {
         _selectionTex = new Texture2D(360, 360);
         _terrainOutline = new TerrainOutline(_selectionTex);
 
-        transform.parent = parent;
+        transform.parent = _parent;
 
         Reset();
         GenerateTerrainLowQuality();
@@ -67,6 +104,11 @@ public class TerrainObject : MonoBehaviour
         GetMeshMaterial().SetTexture("_SelectionTex", _selectionTex);
     }
 
+
+    public void Start()
+    {
+    }
+
     public void HandleInputTracerPress()
     {
         _inputTracerStarted = true;
@@ -75,11 +117,12 @@ public class TerrainObject : MonoBehaviour
     public void HandleInputTracerRelease()
     {
         _inputTracerStarted = false;
-        if (_terrainOutline.ConnectAndUpdate()) 
+        if (_terrainOutline.ConnectAndUpdate())
         {
             var inOutline = _graph.GetNodeIdxsContainedInOutline(_terrainOutline.OutlineTexture);
-            var selectedNodes = networkData.nodes.Where(n => inOutline.Contains(n.id)).ToList();
-            OnSelected.Invoke(new SelectionEventData() {
+            var selectedNodes = _networkData.nodes.Where(n => inOutline.Contains(n.id)).ToList();
+            _onSelected.Invoke(new SelectionEventData()
+            {
                 groupsSelected = selectedNodes
             });
         }
@@ -88,7 +131,7 @@ public class TerrainObject : MonoBehaviour
     public void HandleInputClearCanvasPress()
     {
         _terrainOutline.ClearPoints();
-        OnDeselected.Invoke(new DeselectionEventData());
+        _onDeselected.Invoke(new DeselectionEventData());
     }
 
     public void FixedUpdate()
@@ -100,41 +143,41 @@ public class TerrainObject : MonoBehaviour
     {
         ColorUtil.ResetRandomHSV();
 
-        networkData.ParseFromString();
+        _networkData.ParseFromString();
 
         // get network data information from JSON
-        _JSONNetworkData = JsonUtility.FromJson<FootballFileData>(networkData.dataFile.text);
+        _JSONNetworkData = JsonUtility.FromJson<FootballFileData>(_networkData.dataFile.text);
 
         // get basic graph data from JSON spread over 2D width/height bounds
         _graph = new TerrainGraph(
-            width: (int)Mathf.Sqrt(Mathf.Pow(GRAPH_AREA_LEN, 2) * 2), 
-            height: (int)Mathf.Sqrt(Mathf.Pow(GRAPH_AREA_LEN, 2) * 2), 
-            maxLinks: maxNumLinks
-        ); 
+            width: (int)Mathf.Sqrt(Mathf.Pow(GRAPH_AREA_LEN, 2) * 2),
+            height: (int)Mathf.Sqrt(Mathf.Pow(GRAPH_AREA_LEN, 2) * 2),
+            maxLinks: _maxNumLinks
+        );
         _graph.CreateFromJSONData(_JSONNetworkData);
 
         // make heightmap from graph
         _heightMap = new HeightMap(
             graph: _graph,
-            falloffDistance: falloff * GRAPH_AREA_LEN, 
-            falloffShapeFunc: falloffShapeFunc,
-            peakHeightFunc: peakHeightFunc,
-            slackFunc: slackFunc,
-            slackIsLevel: slackIsLevel
+            falloffDistance: _falloff * GRAPH_AREA_LEN,
+            falloffShapeFunc: _falloffShapeFunc,
+            peakHeightFunc: _peakHeightFunc,
+            slackFunc: _slackFunc,
+            slackIsLevel: _slackIsLevel
         );
 
         // make mesh from heightmap
         _meshGenerator = new TerrainMeshGenerator(
             graph: _graph,
-            heightMap: _heightMap, 
-            meshHeight: scaleHeight, 
-            meshWidth: (int)_graph.width, 
+            heightMap: _heightMap,
+            meshHeight: _scaleHeight,
+            meshWidth: (int)_graph.width,
             meshLength: (int)_graph.height,
-            subdivide: subdivide,
-            radius: curvatureRadius,
+            subdivide: _subdivide,
+            radius: _curvatureRadius,
             useNormalMap: false
         );
-        
+
         _lineTex = null;
         _heightTex = null;
         _normalTex = null;
@@ -146,14 +189,14 @@ public class TerrainObject : MonoBehaviour
         mMaterial.SetTexture("_BumpMap", null);
         mMaterial.SetTexture("_HeightMap", null);
         mMaterial.SetTexture("_NodeColTex", null);
-        mMaterial.SetFloat("_MaxHeight", scaleHeight);
-        mMaterial.SetFloat("_CurvatureRadius", curvatureRadius);
+        mMaterial.SetFloat("_MaxHeight", _scaleHeight);
+        mMaterial.SetFloat("_CurvatureRadius", _curvatureRadius);
         mMaterial.SetInt("_UseHeightMap", 0);
     }
 
     public void GenerateTerrainLowQuality()
     {
-        meshFilter.sharedMesh = _meshGenerator.GenerateFromGraph();
+        _meshFilter.sharedMesh = _meshGenerator.GenerateFromGraph();
 
         var colFlat = new Color[TEX_RES_NORMAL * TEX_RES_NORMAL];
         for (int y = 0; y < TEX_RES_NORMAL; y++)
@@ -167,8 +210,8 @@ public class TerrainObject : MonoBehaviour
         var mMaterial = GetMeshMaterial();
 
         mMaterial.SetTexture("_LineTex", texFlat);
-        mMaterial.SetFloat("_MaxHeight", scaleHeight);
-        mMaterial.SetFloat("_CurvatureRadius", curvatureRadius);
+        mMaterial.SetFloat("_MaxHeight", _scaleHeight);
+        mMaterial.SetFloat("_CurvatureRadius", _curvatureRadius);
     }
 
     public void ToggleAlbedoLines()
@@ -208,12 +251,12 @@ public class TerrainObject : MonoBehaviour
         if (mMaterial.GetTexture("_BumpMap") == null)
         {
             GenerateTerrainSmoothNormals();
-            MeshUtil.FlattenNormals(meshFilter.sharedMesh, new Vector3(0, -curvatureRadius, 0));
+            MeshUtil.FlattenNormals(_meshFilter.sharedMesh, new Vector3(0, -_curvatureRadius, 0));
             mMaterial.SetTexture("_BumpMap", _normalTex);
         }
         else
         {
-            meshFilter.sharedMesh.RecalculateNormals();
+            _meshFilter.sharedMesh.RecalculateNormals();
             mMaterial.SetTexture("_BumpMap", null);
         }
     }
@@ -240,31 +283,31 @@ public class TerrainObject : MonoBehaviour
 
         // regenerate line tex every time, it's not computationally expensive and we might change line opacity often
         // if (_lineTex == null)
-        _lineTex = _heightMap.GenerateTextureLines(TEX_RES_ALBEDO, TEX_RES_ALBEDO, lineColorIntensity);
+        _lineTex = _heightMap.GenerateTextureLines(TEX_RES_ALBEDO, TEX_RES_ALBEDO, _lineColorIntensity);
     }
 
     void CheckLaserIntersectsTerrain()
     {
         if (_inputTracerStarted)
         {
-            var sourcePos = laserBox.position - laserBox.forward * laserBox.localScale.z / 2;
-            Ray ray = new Ray(sourcePos, laserBox.forward);
+            var sourcePos = _laserBox.position - _laserBox.forward * _laserBox.localScale.z / 2;
+            Ray ray = new Ray(sourcePos, _laserBox.forward);
             RaycastHit hit;
 
-            if (meshCollider.Raycast(ray, out hit, Mathf.Infinity))
+            if (_meshCollider.Raycast(ray, out hit, Mathf.Infinity))
             {
-                var worldCollPos = sourcePos + laserBox.forward * hit.distance;
+                var worldCollPos = sourcePos + _laserBox.forward * hit.distance;
                 var localPos = transform.InverseTransformPoint(worldCollPos);
                 var texPos = _meshGenerator.LocalToTexPos(localPos);
 
                 _terrainOutline.AddPointAndUpdate(texPos);
-            }    
+            }
         }
     }
 
     Material GetMeshMaterial()
     {
-        return Application.isPlaying ? meshRenderer.material : meshRenderer.sharedMaterial;
+        return Application.isPlaying ? _meshRenderer.material : _meshRenderer.sharedMaterial;
     }
 
     void GenerateTerrainTextureHeightMap()
@@ -285,7 +328,7 @@ public class TerrainObject : MonoBehaviour
             GenerateTerrainTextureHeightMap();
 
         if (_normalTex == null)
-            _normalTex = TextureUtil.GenerateNormalFromHeight(_heightTex, scaleHeight, GRAPH_AREA_LEN);
+            _normalTex = TextureUtil.GenerateNormalFromHeight(_heightTex, _scaleHeight, GRAPH_AREA_LEN);
 
     }
 

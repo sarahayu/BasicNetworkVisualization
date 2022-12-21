@@ -203,6 +203,8 @@ public class FootballNetworkData : SharedNetworkData
 
                 counter++;
             }
+            else
+                print("virtual node found");
         }
         
         var linkList = new List<LinkData>();
