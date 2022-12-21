@@ -36,9 +36,9 @@ public class FootballNetworkData : SharedNetworkData
 
         renderer.Draw(0.01f);
 
-        print(origin[0]);
-        print(origin[1]);
-        print(origin[2]);
+        // print(origin[0]);
+        // print(origin[1]);
+        // print(origin[2]);
 
         return renderer.positions.Select(p => {
             p.Value[0] = p.Value[0] * 0.1f + origin[0];
@@ -173,10 +173,37 @@ public class FootballNetworkData : SharedNetworkData
 
         foreach (var fileNode in fileData.nodes)
         {
-            if (!fileNode.virtualNode)
+
+            if (fileNode.virtualNode)
             {
-                float curX = (counter % perRow) * step + startX, curY = (counter / perRow) * step;
+                nodeList.Add(new NodeData() {
+                    name = fileNode.label,
+                    id = fileNode.idx,
+                    group = fileNode.ancIdx,
+                    color = new HSV(Color.black),
+                    pos3D = fileNode.pos3D == null
+                        ? new float[] {
+                            0, 0, 0
+                        }
+                        : new float[] {
+                            fileNode.pos3D[0],
+                            fileNode.pos3D[1],
+                            fileNode.pos3D[2]
+                        },
+                    pos2D = fileNode.pos2D == null
+                        ? null
+                        : new float[] {
+                            fileNode.pos2D[0],
+                            fileNode.pos2D[1]
+                        },
+                    active = true,
+                    isVirtual = true,
+                });
+            }
+            else
+            {
                 var pos = poss[fileNode.idx.ToString()];
+                float curX = (counter % perRow) * step + startX, curY = (counter / perRow) * step;
 
                 nodeList.Add(new NodeData() {
                     name = fileNode.label,
@@ -198,13 +225,12 @@ public class FootballNetworkData : SharedNetworkData
                             fileNode.pos2D[0],
                             fileNode.pos2D[1]
                         },
-                    active = true
+                    active = true,
+                    isVirtual = false,
                 });
 
                 counter++;
             }
-            else
-                print("virtual node found");
         }
         
         var linkList = new List<LinkData>();

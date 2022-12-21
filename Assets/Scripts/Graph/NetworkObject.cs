@@ -35,6 +35,7 @@ public class NetworkObject : MonoBehaviour
 
     List<NodeObject> nodeObjects = new List<NodeObject>();
     List<GameObject> links = new List<GameObject>();
+    Dictionary<int, int> networkIdxToObjectIdx = new Dictionary<int, int>();
     int numControllersPressed = 0;
     Vector3 ogControllerRelPos = Vector3.zero;
     Vector3 ogControllersPos;
@@ -80,8 +81,13 @@ public class NetworkObject : MonoBehaviour
 
     void Awake()
     {
+        // SetupComputeShaders();
+    }
+
+    void Start()
+    {
+        // have to wait for SharedNetworkData
         SetupGameObjects();
-        SetupComputeShaders();
     }
 
     void Update()
@@ -148,10 +154,10 @@ public class NetworkObject : MonoBehaviour
     {
         foreach (var link in links)
             link.SetActive(false);
-        int countIdx = 0;
+        int objectIdx = 0;
         foreach (var node in nodeObjects)
         {
-            bool selected = eventData.groupsSelected.Any(item => item.id == countIdx);
+            bool selected = eventData.groupsSelected.Any(item => item.id == nodeObjects[objectIdx].idInNetworkObject);
             if (!selected)
                 node.nodeObject.SetActive(false);
             else
@@ -166,7 +172,7 @@ public class NetworkObject : MonoBehaviour
                         links[link.index].SetActive(true);
                 }
             }
-            countIdx++;
+            objectIdx++;
         }
     }
 
@@ -178,13 +184,17 @@ public class NetworkObject : MonoBehaviour
             node.nodeObject.SetActive(true);
     }
 
+    // movedIndex is index in network object
     public void RearrangeLinks(int movedIndex)
     {
         List<int> nodesWithMovedAsTarget = new List<int>();
-        foreach (var link in nodeObjects[movedIndex].links)
+
+        int movedObjectIdx = networkIdxToObjectIdx[movedIndex];
+
+        foreach (var link in nodeObjects[movedObjectIdx].links)
         {
-            var srcInd = link.data.source;
-            var tarInd = link.data.target;
+            var srcInd = networkIdxToObjectIdx[link.data.source];
+            var tarInd = networkIdxToObjectIdx[link.data.target];
 
             var sourceNode = nodeObjects[srcInd].nodeObject;
             var targetNode = nodeObjects[tarInd].nodeObject;
@@ -215,11 +225,13 @@ public class NetworkObject : MonoBehaviour
     {
         // cameraTransform = worldCamera.GetComponent<Transform>();
 
-        int nodeIndex = 0;
+        int objectIdx = 0;
         foreach (var node in networkData.nodes)
         {
+            if (node.isVirtual)
+                continue;
             var interactableNodeP = Instantiate(nodePrefab, new Vector3(node.pos3D[0], node.pos3D[1], node.pos3D[2]) * 3, Quaternion.identity);
-            interactableNodeP.GetComponent<NodeDisplay>().Init(this, node.color, node.name, nodeIndex);
+            interactableNodeP.GetComponent<NodeDisplay>().Init(this, node.color, node.name, node.id);
             // interactableNodeP.GetComponent<Rigidbody>().detectCollisions = false;
             var nodeTransform = interactableNodeP.transform;
             nodeTransform.SetParent(GetComponent<Transform>());
@@ -233,10 +245,12 @@ public class NetworkObject : MonoBehaviour
                 data = node,
                 nodeObject = interactableNodeP,
                 color = node.color,
-                idInNetworkObject = nodeIndex
+                idInNetworkObject = node.id
             });
 
-            nodeIndex++;
+            networkIdxToObjectIdx.Add(node.id, objectIdx);
+
+            objectIdx++;
         }
 
         int[] color1Ind = { 0, 1, 6, 7, 16, 19, 20, 23 };
@@ -254,8 +268,11 @@ public class NetworkObject : MonoBehaviour
             var rectPrism = GameObject.CreatePrimitive(PrimitiveType.Cube);
             rectPrism.transform.SetParent(transform);
 
-            var source = nodeObjects[link.source].nodeObject;
-            var target = nodeObjects[link.target].nodeObject;
+            int sourceIdx = networkIdxToObjectIdx[link.source], 
+                targetIdx = networkIdxToObjectIdx[link.target];
+
+            var source = nodeObjects[sourceIdx].nodeObject;
+            var target = nodeObjects[targetIdx].nodeObject;
             var toTarget = target.transform.localPosition - source.transform.localPosition;
             var dist = toTarget.magnitude;
 
@@ -279,8 +296,8 @@ public class NetworkObject : MonoBehaviour
             var vertices = mesh.vertices;
             var colors = new Color[vertices.Length];
 
-            Color colorSource = nodeObjects[link.source].color.CloneAndDesat(0.5f).ToRGB(),
-                colorTarget = nodeObjects[link.target].color.CloneAndDesat(0.5f).ToRGB();
+            Color colorSource = nodeObjects[sourceIdx].color.CloneAndDesat(0.5f).ToRGB(),
+                colorTarget = nodeObjects[targetIdx].color.CloneAndDesat(0.5f).ToRGB();
             foreach (var ind in color1Ind)
                 colors[ind] = colorSource;
             foreach (var ind in color2Ind)
@@ -289,12 +306,12 @@ public class NetworkObject : MonoBehaviour
             mesh.colors = colors;
 
             links.Add(rectPrism);
-            nodeObjects[link.source].links.Add(new IndexedLink()
+            nodeObjects[sourceIdx].links.Add(new IndexedLink()
             {
                 data = link,
                 index = linkIndex
             });
-            nodeObjects[link.target].links.Add(new IndexedLink()
+            nodeObjects[targetIdx].links.Add(new IndexedLink()
             {
                 data = link,
                 index = linkIndex
