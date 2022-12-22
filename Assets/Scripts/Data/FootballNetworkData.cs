@@ -197,6 +197,7 @@ public class FootballNetworkData : SharedNetworkData
                             fileNode.pos2D[1]
                         },
                     active = true,
+                    children = fileNode.childIdx,
                     isVirtual = true,
                 });
             }
@@ -226,6 +227,7 @@ public class FootballNetworkData : SharedNetworkData
                             fileNode.pos2D[1]
                         },
                     active = true,
+                    children = fileNode.childIdx,
                     isVirtual = false,
                 });
 

@@ -76,9 +76,11 @@ public class straighthenParam
 {
     public LinkData l;
     public SharedNetworkData networkData;
+    public Dictionary<int, Vector3> cms;
     public Transform transform;
     public ManualResetEvent mrEvent;
     public float beta;
+    public float throttleDist;
 }
 
 public class BasisSpline
@@ -94,20 +96,31 @@ public class BasisSpline
     {
         straighthenParam p = (straighthenParam)param;
         link = p.l;
-        Straighten(p.networkData, p.beta, p.transform);
+        Straighten(p.networkData, p.beta, p.transform, p.cms, p.throttleDist);
     }
     
-    public void Straighten(SharedNetworkData networkData, float beta, Transform transform)
+    public void Straighten(SharedNetworkData networkData, float beta, Transform transform, Dictionary<int, Vector3> cms, float throttleDist)
     {
-        Vector3[] controlPoints = { 
-            new Vector3(networkData.nodes[link.source].pos3D[0], networkData.nodes[link.source].pos3D[1], networkData.nodes[link.source].pos3D[2]),
-            new Vector3(networkData.nodes[link.target].pos3D[0], networkData.nodes[link.target].pos3D[1], networkData.nodes[link.target].pos3D[2]),
+        NodeData srcNode = networkData.nodes[link.source], tarNode = networkData.nodes[link.target];
+
+        Vector3 source = new Vector3(srcNode.pos3D[0], srcNode.pos3D[1], srcNode.pos3D[2]);
+        Vector3 target = new Vector3(tarNode.pos3D[0], tarNode.pos3D[1], tarNode.pos3D[2]);
+        Vector3 dVector3 = target - source;
+        var lenSq = dVector3.sqrMagnitude;
+
+        Vector3[] controlPoints = srcNode.group == tarNode.group ? 
+        new Vector3[] { 
+            source,
+            target,
+         } : 
+         new Vector3[] {
+            source,
+            Vector3.Lerp(cms[srcNode.group], cms[tarNode.group], (throttleDist * throttleDist) / lenSq),
+            Vector3.Lerp(cms[srcNode.group], cms[tarNode.group], 1 - (throttleDist * throttleDist) / lenSq),
+            target,
          };
 
         int length = controlPoints.Length;
-        Vector3 source = controlPoints[0];
-        Vector3 target = controlPoints[length - 1];
-        Vector3 dVector3 = target - source;
 
         StraightenPoints = new Vector3[length + 2];
         ScaledStraighthenPoints = new Vector3[length + 2];

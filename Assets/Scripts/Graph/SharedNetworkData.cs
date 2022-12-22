@@ -28,6 +28,7 @@ public class NodeData
     public float[] pos2D;
     public bool active;
     public bool isVirtual;
+    public int[] children;
 }
 
 public class LinkData

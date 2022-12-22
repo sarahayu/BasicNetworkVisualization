@@ -20,6 +20,7 @@ class IndexedLink
     public int index;
 }
 
+// TODO refactor, split responsibilities!
 public class NetworkObject : MonoBehaviour
 {
     public SharedNetworkData networkData;
@@ -69,6 +70,7 @@ public class NetworkObject : MonoBehaviour
 
     public int threadNum = 16;
     [Range(0.0f, 1.0f)] public float edgeBundlingStrength = 0.8f;
+    [Range(0.0f, 10.0f)] public float edgeThrottlingDistance = 3f;
 
     public Color nodeHighlightColor;
     public Color linkHighlightColor;
@@ -78,6 +80,7 @@ public class NetworkObject : MonoBehaviour
     [Range(0.0f, 1.0f)] public float linkContextAlphaFactor = 0.5f;
     [Range(0.0f, 1.0f)] public float linkContext2FocusAlphaFactor = 0.8f;
     Dictionary<LinkData, GameObject> _linkGroup = new Dictionary<LinkData, GameObject>();
+    Dictionary<int, Vector3> groupCMS = null;
 
     void Awake()
     {
@@ -263,10 +266,8 @@ public class NetworkObject : MonoBehaviour
                 idInNetworkObject = node.id
             });
 
-            networkIdxToObjectIdx.Add(node.id, objectIdx);
+            networkIdxToObjectIdx.Add(node.id, objectIdx++);
             UpdateNodePosInSharedNetwork(node, nodeGameObject.transform);
-
-            objectIdx++;
         }
 
         int[] color1Ind = { 0, 1, 6, 7, 16, 19, 20, 23 };
@@ -410,6 +411,7 @@ public class NetworkObject : MonoBehaviour
             }
         }
 
+        ComputeCenterMasses();
         ComputeControlPoints();
         InitializeComputeBuffers();
         Redraw();
@@ -532,6 +534,33 @@ public class NetworkObject : MonoBehaviour
         BSplineComputeShader.Dispatch(kernel, Mathf.CeilToInt(SplineSegments.Count / 32), 1, 1);
     }
 
+    void ComputeCenterMasses()
+    {
+        if (groupCMS == null)
+            groupCMS = networkData.nodes
+                .Where(node => !node.isVirtual)
+                .Select(node => node.group)
+                .Distinct()
+                .ToDictionary(keySelector: groupNodeIdx => groupNodeIdx, elementSelector: _ => new Vector3());
+
+        // print(networkData.nodes.Count());
+        foreach (var groupIdx in groupCMS.Keys.ToList())
+        {
+            // print(groupIdx);
+            var avgPos = networkData.nodes[groupIdx].children.Aggregate(
+                new Vector3(), 
+                (sum, childIdx) => sum + new Vector3(
+                        networkData.nodes[childIdx].pos3D[0],
+                        networkData.nodes[childIdx].pos3D[1],
+                        networkData.nodes[childIdx].pos3D[2]
+                    ));
+
+            avgPos /= networkData.nodes[groupIdx].children.Count();
+
+            groupCMS[groupIdx] = avgPos;
+        }
+    }
+
     void ComputeControlPoints()
     {
         // idx SHOULD line up with networkData.links
@@ -544,6 +573,8 @@ public class NetworkObject : MonoBehaviour
                 networkData = networkData,
                 transform = transform,
                 beta = edgeBundlingStrength,
+                cms = groupCMS,
+                throttleDist = edgeThrottlingDistance
             };
 
             spline.ComputeSplineController(param);
