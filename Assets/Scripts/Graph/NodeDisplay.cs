@@ -51,7 +51,7 @@ public class NodeDisplay : MonoBehaviour
         
         if (rearrangingAroundThis)
         {
-            network.RearrangeLinks(hash);
+            network.Rearrange(hash);
         }
     }
 

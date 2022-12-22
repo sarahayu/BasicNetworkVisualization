@@ -35,4 +35,5 @@ public class LinkData
     public int source;
     public int target;
     public int value;
+    public int id;
 }

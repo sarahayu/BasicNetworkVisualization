@@ -21,108 +21,113 @@ using UnityEngine;
 //     // public LinkDraw linkDraw = new LinkDraw();
 
 //     // Control Points for Edge Bundling
-//     public Vector3[] ControlPoints(Network network)
-//     {
-//         //TODO There has to some better way to do this, and also to provide a constant number of control points
+//     // public Vector3[] ControlPoints(Network network)
+//     // {
+//     //     //TODO There has to some better way to do this, and also to provide a constant number of control points
 
-//         var clusterS = network.communities[network[sourceIdx].communityIdx];
-//         var clusterT = network.communities[network[targetIdx].communityIdx];
-//         var sCenter = clusterS.massCenter;
-//         var tCenter = clusterT.massCenter;
-//         // if (network.is2D)
-//         // {
-//         //     sCenter.z = 0.25f;
-//         //     tCenter.z = 0.25f;
-//         // }
-//         // // Between focus and context
-//         // if (clusterS.focus && !clusterT.focus)
-//         // {
-//         //     return new [] {
-//         //         network[sourceIdx].Position3D,
-//         //         (sCenter + tCenter) / 2,
-//         //         tCenter,
-//         //         network[targetIdx].Position3D
-//         //     };
-//         // }
-//         // if (clusterT.focus && !clusterS.focus)
-//         // {
-//         //     return new [] {
-//         //         network[sourceIdx].Position3D,
-//         //         sCenter,
-//         //         (sCenter + tCenter) / 2,
-//         //         network[targetIdx].Position3D
-//         //     };
-//         // }
+//     //     var clusterS = network.communities[network[sourceIdx].communityIdx];
+//     //     var clusterT = network.communities[network[targetIdx].communityIdx];
+//     //     var sCenter = clusterS.massCenter;
+//     //     var tCenter = clusterT.massCenter;
+//     //     // if (network.is2D)
+//     //     // {
+//     //     //     sCenter.z = 0.25f;
+//     //     //     tCenter.z = 0.25f;
+//     //     // }
+//     //     // // Between focus and context
+//     //     // if (clusterS.focus && !clusterT.focus)
+//     //     // {
+//     //     //     return new [] {
+//     //     //         network[sourceIdx].Position3D,
+//     //     //         (sCenter + tCenter) / 2,
+//     //     //         tCenter,
+//     //     //         network[targetIdx].Position3D
+//     //     //     };
+//     //     // }
+//     //     // if (clusterT.focus && !clusterS.focus)
+//     //     // {
+//     //     //     return new [] {
+//     //     //         network[sourceIdx].Position3D,
+//     //     //         sCenter,
+//     //     //         (sCenter + tCenter) / 2,
+//     //     //         network[targetIdx].Position3D
+//     //     //     };
+//     //     // }
 
-//         Vector3[] result = new Vector3[pathInTree.Count];
-//         for (int i = 0; i < pathInTree.Count; i++)
-//         {
-//             result[i] = pathInTree[i].Position3D;
-//         }
+//     //     Vector3[] result = new Vector3[pathInTree.Count];
+//     //     for (int i = 0; i < pathInTree.Count; i++)
+//     //     {
+//     //         result[i] = pathInTree[i].Position3D;
+//     //     }
 
-//         // TODO Optimization
-//         //pathInTree.ForEach((n) =>
-//         //{
-//         //    // normalization
-//         //    retval.Add((n.Position3D));
-//         //});
+//     //     // TODO Optimization
+//     //     //pathInTree.ForEach((n) =>
+//     //     //{
+//     //     //    // normalization
+//     //     //    retval.Add((n.Position3D));
+//     //     //});
 
-//         //return retval;
+//     //     //return retval;
 
-//         return result;
-//     }
+//     //     return result;
+//     // }
 // }
-// public class straighthenParam
-// {
-//     public Link l;
-//     public Network network;
-//     public float spaceScale;
-//     public ManualResetEvent mrEvent;
-//     public float beta;
-// }
+public class straighthenParam
+{
+    public LinkData l;
+    public SharedNetworkData networkData;
+    public Transform transform;
+    public ManualResetEvent mrEvent;
+    public float beta;
+}
 
-// public class BasisSpline
-// {
-//     protected Link link;
+public class BasisSpline
+{
+    protected LinkData link;
 
-//     // the control points to generate B Spline
-//     public Vector3[] ScaledStraighthenPoints;
+    // the control points to generate B Spline
+    public Vector3[] StraightenPoints;
+    public Vector3[] ScaledStraighthenPoints;
 
-//     // Methods for Multi-thread Computing Spline Control Points
-//     public void ComputeSplineController(object param)
-//     {
-//         straighthenParam p = (straighthenParam)param;
-//         link = p.l;
-//         Straighten(p.network, p.beta, p.spaceScale);
-//     }
+    // Methods for Multi-thread Computing Spline Control Points
+    public void ComputeSplineController(object param)
+    {
+        straighthenParam p = (straighthenParam)param;
+        link = p.l;
+        Straighten(p.networkData, p.beta, p.transform);
+    }
     
-//     public void Straighten(Network network, float beta, float spaceScale)
-//     {
-//         Vector3[] controlPoints = link.ControlPoints(network);
-//         int length = controlPoints.Length;
-//         Vector3 source = controlPoints[0];
-//         Vector3 target = controlPoints[length - 1];
-//         Vector3 dVector3 = target - source;
+    public void Straighten(SharedNetworkData networkData, float beta, Transform transform)
+    {
+        Vector3[] controlPoints = { 
+            new Vector3(networkData.nodes[link.source].pos3D[0], networkData.nodes[link.source].pos3D[1], networkData.nodes[link.source].pos3D[2]),
+            new Vector3(networkData.nodes[link.target].pos3D[0], networkData.nodes[link.target].pos3D[1], networkData.nodes[link.target].pos3D[2]),
+         };
 
-//         Vector3[] straightenPoints = new Vector3[length + 2];
-//         ScaledStraighthenPoints = new Vector3[length + 2];
+        int length = controlPoints.Length;
+        Vector3 source = controlPoints[0];
+        Vector3 target = controlPoints[length - 1];
+        Vector3 dVector3 = target - source;
 
-//         straightenPoints[0] = source;
-//         ScaledStraighthenPoints[0] = straightenPoints[0] * spaceScale;
+        StraightenPoints = new Vector3[length + 2];
+        ScaledStraighthenPoints = new Vector3[length + 2];
 
-//         for (int i = 0; i < length; i++)
-//         {
-//             Vector3 point = controlPoints[i];
+        StraightenPoints[0] = source;
+        ScaledStraighthenPoints[0] = transform.TransformPoint(StraightenPoints[0]);
 
-//             straightenPoints[i + 1].x = beta * point.x + (1 - beta) * (source.x + (i + 1) * dVector3.x / length);
-//             straightenPoints[i + 1].y = beta * point.y + (1 - beta) * (source.y + (i + 1) * dVector3.y / length);
-//             straightenPoints[i + 1].z = beta * point.z + (1 - beta) * (source.z + (i + 1) * dVector3.z / length);
+        for (int i = 0; i < length; i++)
+        {
+            Vector3 point = controlPoints[i];
 
-//             ScaledStraighthenPoints[i + 1] = straightenPoints[i + 1] * spaceScale;
-//         }
-//         straightenPoints[length + 1] = target;
-//         ScaledStraighthenPoints[length + 1] = straightenPoints[length + 1] * spaceScale;
+            StraightenPoints[i + 1].x = beta * point.x + (1 - beta) * (source.x + (i + 1) * dVector3.x / length);
+            StraightenPoints[i + 1].y = beta * point.y + (1 - beta) * (source.y + (i + 1) * dVector3.y / length);
+            StraightenPoints[i + 1].z = beta * point.z + (1 - beta) * (source.z + (i + 1) * dVector3.z / length);
 
-//         link.straightenPoints = new List<Vector3>(straightenPoints);
-//     }
-// }
+            ScaledStraighthenPoints[i + 1] = transform.TransformPoint(StraightenPoints[i + 1]);
+        }
+        StraightenPoints[length + 1] = target;
+        ScaledStraighthenPoints[length + 1] = transform.TransformPoint(StraightenPoints[length + 1]);
+
+        // return new List<Vector3>(straightenPoints);
+    }
+}

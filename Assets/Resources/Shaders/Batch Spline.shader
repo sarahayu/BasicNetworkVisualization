@@ -1,3 +1,5 @@
+// Upgrade NOTE: replaced 'mul(UNITY_MATRIX_MVP,*)' with 'UnityObjectToClipPos(*)'
+
 Shader "Custom/Batch Spline"
 {
     Properties
@@ -23,8 +25,10 @@ Shader "Custom/Batch Spline"
             #pragma vertex vert
             #pragma fragment frag
            
-
             #include "UnityCG.cginc"
+            
+            // have to use normal (non RW) buffer for my graphics card >:(
+            #define SHADER_CODE
 			#include "Spline Data.cginc"
 
             float _LineWidth; // Used to adjust the line thickness

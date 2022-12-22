@@ -235,12 +235,14 @@ public class FootballNetworkData : SharedNetworkData
         
         var linkList = new List<LinkData>();
 
+        int linkIdx = 0;
         foreach (var fileLink in fileData.links)
         {
             linkList.Add(new LinkData() {
                 source = fileLink.sourceIdx,
                 target = fileLink.targetIdx,
                 value = 1,
+                id = linkIdx++,
             });
         }
 

@@ -49,4 +49,11 @@ struct SplineSamplePointData {
 StructuredBuffer<SplineData> InSplineData;
 StructuredBuffer<SplineSegmentData> InSplineSegmentData;
 StructuredBuffer<SplineControlPointData> InSplineControlPointData;
-RWStructuredBuffer<SplineSamplePointData> OutSamplePointData;
+
+uint NumPoints;
+// have to use normal (non RW) buffer for my <D3X11_1 graphics card >:(
+#ifdef SHADER_CODE
+	StructuredBuffer<SplineSamplePointData> OutSamplePointData;
+#else
+	RWStructuredBuffer<SplineSamplePointData> OutSamplePointData;
+#endif
