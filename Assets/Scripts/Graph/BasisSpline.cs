@@ -77,7 +77,6 @@ public class straighthenParam
     public LinkData l;
     public SharedNetworkData networkData;
     public Dictionary<int, Vector3> cms;
-    public Transform transform;
     public ManualResetEvent mrEvent;
     public float beta;
     public float throttleDist;
@@ -89,17 +88,16 @@ public class BasisSpline
 
     // the control points to generate B Spline
     public Vector3[] StraightenPoints;
-    public Vector3[] ScaledStraighthenPoints;
 
     // Methods for Multi-thread Computing Spline Control Points
     public void ComputeSplineController(object param)
     {
         straighthenParam p = (straighthenParam)param;
         link = p.l;
-        Straighten(p.networkData, p.beta, p.transform, p.cms, p.throttleDist);
+        Straighten(p.networkData, p.beta, p.cms, p.throttleDist);
     }
     
-    public void Straighten(SharedNetworkData networkData, float beta, Transform transform, Dictionary<int, Vector3> cms, float throttleDist)
+    public void Straighten(SharedNetworkData networkData, float beta, Dictionary<int, Vector3> cms, float throttleDist)
     {
         NodeData srcNode = networkData.nodes[link.source], tarNode = networkData.nodes[link.target];
 
@@ -123,10 +121,8 @@ public class BasisSpline
         int length = controlPoints.Length;
 
         StraightenPoints = new Vector3[length + 2];
-        ScaledStraighthenPoints = new Vector3[length + 2];
 
         StraightenPoints[0] = source;
-        ScaledStraighthenPoints[0] = transform.TransformPoint(StraightenPoints[0]);
 
         for (int i = 0; i < length; i++)
         {
@@ -135,11 +131,8 @@ public class BasisSpline
             StraightenPoints[i + 1].x = beta * point.x + (1 - beta) * (source.x + (i + 1) * dVector3.x / length);
             StraightenPoints[i + 1].y = beta * point.y + (1 - beta) * (source.y + (i + 1) * dVector3.y / length);
             StraightenPoints[i + 1].z = beta * point.z + (1 - beta) * (source.z + (i + 1) * dVector3.z / length);
-
-            ScaledStraighthenPoints[i + 1] = transform.TransformPoint(StraightenPoints[i + 1]);
         }
         StraightenPoints[length + 1] = target;
-        ScaledStraighthenPoints[length + 1] = transform.TransformPoint(StraightenPoints[length + 1]);
 
         // return new List<Vector3>(straightenPoints);
     }

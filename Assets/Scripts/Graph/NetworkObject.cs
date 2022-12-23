@@ -121,14 +121,16 @@ public class NetworkObject : MonoBehaviour
                 var mag = controllerRelPos.magnitude / ogControllerRelPos.magnitude;
                 // var newScale = ogNetworkTransform.localScale * mag;
                 transform.localScale = ogNetworkScale * mag;
-                transform.position = ogNetworkPos + (leftController.position + controllerRelPos / 2 - ogControllersPos) * 20;
                 // var newRot = Quaternion.LookRotation(controllerRelPos);
 
-                var forward = Vector3.Cross(Vector3.up, controllerRelPos).normalized;
+                // var forward = Vector3.Cross(Vector3.up, controllerRelPos).normalized;
                 var newRot = Quaternion.FromToRotation(ogControllerRelPos, controllerRelPos);
 
                 transform.rotation = newRot * ogNetworkRot;
+                transform.position = ogNetworkPos + (leftController.position + controllerRelPos / 2 - ogControllersPos) * 20;
             }
+
+            batchSplineMaterial.SetMatrix("_Transform", transform.localToWorldMatrix);
 
         }
         else
@@ -159,12 +161,11 @@ public class NetworkObject : MonoBehaviour
 
     public void OnSelectEvent(SelectionEventData eventData)
     {
-        foreach (var link in links)
-            link.SetActive(false);
-        int objectIdx = 0;
+        List<int> activeLinks = new List<int>();
+        
         foreach (var node in nodeObjects)
         {
-            bool selected = eventData.groupsSelected.Any(item => item.id == nodeObjects[objectIdx].idInNetworkObject);
+            bool selected = eventData.nodesSelected.Any(item => item.id == node.idInNetworkObject);
             if (!selected)
                 node.nodeObject.SetActive(false);
             else
@@ -172,23 +173,40 @@ public class NetworkObject : MonoBehaviour
                 node.nodeObject.SetActive(true);
                 foreach (var link in node.links)
                 {
-                    bool srcSelected = eventData.groupsSelected.Any(item => item.id == link.data.source);
-                    bool targetSelected = eventData.groupsSelected.Any(item => item.id == link.data.target);
+                    int otherIdx = link.data.source == node.idInNetworkObject ? link.data.target : link.data.source;
+                    bool otherSelected = eventData.nodesSelected.Any(_node => _node.id == otherIdx);
 
-                    if (srcSelected && targetSelected)
-                        links[link.index].SetActive(true);
+                    if (otherSelected)
+                    {
+                        activeLinks.Add(link.index);
+                    }
                 }
             }
-            objectIdx++;
         }
+
+        foreach (var inactiveIdx in Enumerable.Range(0, networkData.links.Count()).Except(activeLinks))
+        {
+            var spline = Splines[inactiveIdx];
+            spline.LinkState = 0;
+            Splines[inactiveIdx] = spline;
+        }
+
+        Redraw(recomputeSplines: false);
     }
 
     public void OnDeselectEvent(DeselectionEventData eventData)
     {
-        foreach (var link in links)
-            link.SetActive(true);
+        for (int i = 0; i < Splines.Count(); i++)
+        {
+            var spline = Splines[i];
+            spline.LinkState = 1;
+            Splines[i] = spline;
+        }
+        
         foreach (var node in nodeObjects)
             node.nodeObject.SetActive(true);
+
+        Redraw(recomputeSplines: false);
     }
 
     // movedIndex is index in network object
@@ -237,11 +255,11 @@ public class NetworkObject : MonoBehaviour
 
     GameObject CreateSphere(NodeData node)
     {
-        var interactableNodeP = Instantiate(
+        var interactableNodeP = (GameObject)Instantiate(
             original: nodePrefab, 
-            position: new Vector3(node.pos3D[0], node.pos3D[1], node.pos3D[2]) * 3, 
-            rotation: Quaternion.identity, 
-            parent: transform);
+            parent: transform,
+            instantiateInWorldSpace: false);
+        interactableNodeP.transform.localPosition = new Vector3(node.pos3D[0], node.pos3D[1], node.pos3D[2]) * 3;
         interactableNodeP.GetComponent<NodeDisplay>().Init(this, node.color, node.name, node.id);
         return interactableNodeP;
     }
@@ -277,66 +295,21 @@ public class NetworkObject : MonoBehaviour
         foreach (var link in networkData.links)
             if (link.value > max)
                 max = link.value;
-
-        // return;
+        
         int linkIndex = 0;
-        // foreach (var link in networkData.links)
-        // {
-        //     var rectPrism = GameObject.CreatePrimitive(PrimitiveType.Cube);
-        //     rectPrism.transform.SetParent(transform);
+        foreach (var link in networkData.links)
+        {
+            nodeObjects[networkIdxToObjectIdx[link.source]].links.Add(new IndexedLink() {
+                data = link,
+                index = linkIndex
+            });
+            nodeObjects[networkIdxToObjectIdx[link.target]].links.Add(new IndexedLink() {
+                data = link,
+                index = linkIndex
+            });
 
-        //     int sourceIdx = networkIdxToObjectIdx[link.source], 
-        //         targetIdx = networkIdxToObjectIdx[link.target];
-
-        //     var source = nodeObjects[sourceIdx].nodeObject;
-        //     var target = nodeObjects[targetIdx].nodeObject;
-        //     var toTarget = target.transform.localPosition - source.transform.localPosition;
-        //     var dist = toTarget.magnitude;
-
-        //     var thickness = Mathf.Pow(Mathf.Lerp(minLinkThickness, maxLinkThickness, (float)link.value / max), 1.0f / lineThicknessGrowth);
-
-        //     rectPrism.transform.localScale = new Vector3(thickness, dist, thickness);
-        //     rectPrism.transform.localPosition = source.transform.localPosition + toTarget / 2;
-
-        //     // var toTargetWorld = target.transform.position - source.transform.position;
-        //     // var dec = Mathf.Atan2(Mathf.Sqrt(toTarget.x * toTarget.x + toTarget.z * toTarget.z), toTarget.y);
-        //     // var ra = Mathf.Atan2(toTarget.x, toTarget.z);
-        //     // rectPrism.transform.RotateAround(source.transform.position, transform.rotation * Vector3.right, dec * Mathf.Rad2Deg);
-        //     // rectPrism.transform.RotateAround(source.transform.position, transform.rotation * Vector3.up, ra * Mathf.Rad2Deg);
-        //     rectPrism.transform.LookAt(target.transform.position);
-        //     rectPrism.transform.RotateAround(rectPrism.transform.position, rectPrism.transform.right, 90);
-
-        //     rectPrism.GetComponent<MeshRenderer>().material.shader = Shader.Find("Particles/Standard Surface");
-
-
-        //     var mesh = rectPrism.GetComponent<MeshFilter>().mesh;
-        //     var vertices = mesh.vertices;
-        //     var colors = new Color[vertices.Length];
-
-        //     Color colorSource = nodeObjects[sourceIdx].color.CloneAndDesat(0.5f).ToRGB(),
-        //         colorTarget = nodeObjects[targetIdx].color.CloneAndDesat(0.5f).ToRGB();
-        //     foreach (var ind in color1Ind)
-        //         colors[ind] = colorSource;
-        //     foreach (var ind in color2Ind)
-        //         colors[ind] = colorTarget;
-
-        //     mesh.colors = colors;
-
-        //     links.Add(rectPrism);
-        //     nodeObjects[sourceIdx].links.Add(new IndexedLink()
-        //     {
-        //         data = link,
-        //         index = linkIndex
-        //     });
-        //     nodeObjects[targetIdx].links.Add(new IndexedLink()
-        //     {
-        //         data = link,
-        //         index = linkIndex
-        //     });
-
-        //     linkIndex++;
-        //     // spheres.Add(rectPrism);
-        // }
+            linkIndex++;
+        }
     }
 
     void SetupComputeShaders()
@@ -358,33 +331,7 @@ public class NetworkObject : MonoBehaviour
     {
         print("Layout Update!");
         // layoutReady = false;
-        // network = layout.networkObj;
-
-        // foreach (var node in layout.networkObj.nodes)
-        // {
-        //     if (node.virtualNode && drawVirtualNode)
-        //     {
-        //         DrawVirtualNode(node.idx, node.Position3D);
-        //     }
-        //     else if (!node.virtualNode)
-        //     {
-        //         DrawNode(node.idx, node.Position3D, layout.networkObj);
-        //     }
-        // }
-
-        // This will draw a 'debug' tree structure to emphasize the underlying hierarchy...
-        // if (drawTreeStructure)
-        // {
-        //     foreach (var link in layout.treeLinks)
-        //     {
-        //         var start = layout.networkObj[link.sourceIdx].Position3D;
-        //         var end = layout.networkObj[link.targetIdx].Position3D;
-        //         var linkObj = DrawStraightLine3D(start * spaceScale, end * spaceScale, LinkColor);
-        //         _linkGroup.Add(link, linkObj);
-        //     }
-        // }
-        // else // ...whereas this is concerned with the visible links between nodes in the graph
-        // {
+        
         foreach (var link in networkData.links)
         {
 
@@ -414,8 +361,10 @@ public class NetworkObject : MonoBehaviour
         ComputeCenterMasses();
         ComputeControlPoints();
         InitializeComputeBuffers();
-        Redraw();
-        // }
+        
+        // Run the ComputeShader. 1 Thread per segment.
+        int kernel = BSplineComputeShader.FindKernel("CSMain");
+        BSplineComputeShader.Dispatch(kernel, Mathf.CeilToInt(SplineSegments.Count / 32), 1, 1);
 
         // layoutReady = true;
     }
@@ -447,7 +396,7 @@ public class NetworkObject : MonoBehaviour
                 var source = nodeObjects[sourceIdx];
                 var target = nodeObjects[targetIdx];
 
-                var straightenPoints = BaseSplines[link.id].ScaledStraighthenPoints;
+                var straightenPoints = BaseSplines[link.id].StraightenPoints;
                 int NumSegments = straightenPoints.Count() + BSplineDegree - 2; //NumControlPoints + Degree - 2 (First/Last Point)
                 Color sourceColor = source.color.ToRGB();
                 Color targetColor = target.color.ToRGB();
@@ -521,12 +470,16 @@ public class NetworkObject : MonoBehaviour
 
 
         // Bind the buffers to the LineRenderer Material
-        batchSplineMaterial.SetBuffer("InSplineData", InSplineData);
+        // batchSplineMaterial.SetBuffer("InSplineData", InSplineData);
         batchSplineMaterial.SetBuffer("OutSamplePointData", OutSampleControlPointData);
+        batchSplineMaterial.SetMatrix("_Transform", transform.localToWorldMatrix);
     }
-    void Redraw()
+
+    // if recompute false, we may just be updating visibility, not position data. So don't recompute control points... more performant?
+    void Redraw(bool recomputeSplines = true)
     {
-        ComputeControlPoints();
+        if (recomputeSplines)
+            ComputeControlPoints();
         UpdateComputeBuffers();
 
         // Run the ComputeShader. 1 Thread per segment.
@@ -571,7 +524,6 @@ public class NetworkObject : MonoBehaviour
             {
                 l = networkData.links[idx++],
                 networkData = networkData,
-                transform = transform,
                 beta = edgeBundlingStrength,
                 cms = groupCMS,
                 throttleDist = edgeThrottlingDistance
@@ -581,110 +533,119 @@ public class NetworkObject : MonoBehaviour
         }
     }
 
+    void UpdateLinkPosition()
+    {
+        // Initialize Compute Shader data
+        SplineControlPoints = new List<SplineControlPointData>();
+
+        uint splineSegmentCount = 0;
+        uint splineControlPointCount = 0;
+        uint splineSampleCount = 0;
+
+        uint splineIdx = 0;
+
+        foreach (var link in networkData.links)
+        {
+            // BasisSpline basisSpline = splines[entry.Key];
+            int ControlPointCount = 2;//basisSpline.ScaledStraighthenPoints.Length;
+            int NumSegments = ControlPointCount + BSplineDegree - 2; //NumControlPoints + Degree - 2 (First/Last Point)
+
+
+            /*
+            * Add Compute Shader data
+            */
+            int sourceIdx = networkIdxToObjectIdx[link.source], 
+                targetIdx = networkIdxToObjectIdx[link.target];
+
+            var source = nodeObjects[sourceIdx];
+            var target = nodeObjects[targetIdx];
+            var straightenPoints = BaseSplines[link.id].StraightenPoints;
+            Vector3 startPosition = straightenPoints[0];
+            Vector3 endPosition = straightenPoints[ControlPointCount - 1];
+            uint linkState = 4;// (uint)entry.Key.linkDraw._linkState;
+
+            // Update spline information, we can preserve colors since their lookup is expensive
+            // SplineData spline = Splines[splineIdx];
+            // int OldNumSegments = (int)spline.NumSegments;
+            // spline.StartPosition = startPosition;
+            // spline.EndPosition = endPosition;
+            // spline.LinkState = linkState;
+            // spline.NumSegments = (uint)NumSegments;
+            // spline.BeginSplineSegmentIdx = splineSegmentCount;
+            // spline.NumSamples = (uint)NumSegments * BSplineSamplesPerSegment;
+            // spline.BeginSamplePointIdx = splineSampleCount;
+            // Splines[splineIdx++] = spline;
+
+            // To improve performance, we differentiate between cases where there's the same number of segments and where the number differs
+            // For same number of segments, we only update the data without creating now instances
+            // For differing number of segments, we delete the old range of segment data and insert the new one in place
+            // if (NumSegments != OldNumSegments)
+            // {
+            //     // Remove old segment data
+            //     SplineSegments.RemoveRange((int)splineSegmentCount, OldNumSegments);
+
+            //     // Add new segment data
+            //     for (int i = 0; i < NumSegments; i++)
+            //     {
+            //         SplineSegments.Insert((int)splineSegmentCount, new SplineSegmentData(
+            //             spline.Idx,
+            //             splineControlPointCount + (uint)i,
+            //             BSplineSamplesPerSegment,
+            //             splineSegmentCount * BSplineSamplesPerSegment
+            //             ));
+
+            //         splineSampleCount += BSplineSamplesPerSegment;
+            //         splineSegmentCount += 1;
+            //     }
+            // }
+            // else
+            // {
+            // Update segment
+            for (int i = 0; i < NumSegments; i++)
+            {
+                SplineSegmentData splineSegment = SplineSegments[(int)splineSegmentCount];
+                splineSegment.SplineIdx = splineIdx;
+                splineSegment.BeginControlPointIdx = splineControlPointCount + (uint)i;
+                splineSegment.NumSamples = BSplineSamplesPerSegment;
+                splineSegment.BeginSamplePointIdx = splineSegmentCount * BSplineSamplesPerSegment;
+                SplineSegments[(int)splineSegmentCount] = splineSegment;
+
+                splineSampleCount += BSplineSamplesPerSegment;
+                splineSegmentCount += 1;
+            }
+            // }
+
+
+
+            // Add all control points of this spline
+            // We have to add *degree* times the first and last control points to make the spline coincide with its endpoints
+            // Remember to add cp0 degree-1 times, because the loop that adds all the points will add the last remaining cp0
+            // See: https://web.mit.edu/hyperbook/Patrikalakis-Maekawa-Cho/node17.html
+            SplineControlPointData[] controlPoints = new SplineControlPointData[2 * (BSplineDegree - 1) + ControlPointCount];
+            for (int i = 0; i < BSplineDegree; i++)
+            {
+                controlPoints[i].Position = straightenPoints[0];
+            }
+            for (int i = 1; i < ControlPointCount - 1; i++)
+            {
+                controlPoints[BSplineDegree - 1 + i].Position = straightenPoints[i];
+            }
+            for (int i = BSplineDegree + (ControlPointCount - 1) - 1; i < controlPoints.Length; i++)
+            {
+                controlPoints[i].Position = straightenPoints[ControlPointCount - 1];
+            }
+            
+            SplineControlPoints.AddRange(controlPoints); // AddRange is faster than adding items in a loop
+            splineControlPointCount += (uint)controlPoints.Length;
+            splineIdx++;
+        }
+    }
+
     void UpdateComputeBuffers()
     {
-        // // Initialize Compute Shader data
-        // SplineControlPoints = new List<SplineControlPointData>();
-
-        // uint splineSegmentCount = 0;
-        // uint splineControlPointCount = 0;
-        // uint splineSampleCount = 0;
-
-        // int splineIdx = 0;
-
-        // foreach (var entry in _linkGroup)
-        // {
-        //     // BasisSpline basisSpline = splines[entry.Key];
-        //     int ControlPointCount = 2;//basisSpline.ScaledStraighthenPoints.Length;
-        //     int NumSegments = ControlPointCount + BSplineDegree - 2; //NumControlPoints + Degree - 2 (First/Last Point)
-
-
-        //     /*
-        //     * Add Compute Shader data
-        //     */
-        //     Vector3 startPosition = basisSpline.ScaledStraighthenPoints[0];
-        //     Vector3 endPosition = basisSpline.ScaledStraighthenPoints[ControlPointCount - 1];
-        //     uint linkState = 4;// (uint)entry.Key.linkDraw._linkState;
-
-        //     // Update spline information, we can preserve colors since their lookup is expensive
-        //     SplineData spline = Splines[splineIdx];
-        //     int OldNumSegments = (int)spline.NumSegments;
-        //     spline.StartPosition = startPosition;
-        //     spline.EndPosition = endPosition;
-        //     spline.LinkState = linkState;
-        //     spline.NumSegments = (uint)NumSegments;
-        //     spline.BeginSplineSegmentIdx = splineSegmentCount;
-        //     spline.NumSamples = (uint)NumSegments * BSplineSamplesPerSegment;
-        //     spline.BeginSamplePointIdx = splineSampleCount;
-        //     Splines[splineIdx++] = spline;
-
-        //     // To improve performance, we differentiate between cases where there's the same number of segments and where the number differs
-        //     // For same number of segments, we only update the data without creating now instances
-        //     // For differing number of segments, we delete the old range of segment data and insert the new one in place
-        //     if (NumSegments != OldNumSegments)
-        //     {
-        //         // Remove old segment data
-        //         SplineSegments.RemoveRange((int)splineSegmentCount, OldNumSegments);
-
-        //         // Add new segment data
-        //         for (int i = 0; i < NumSegments; i++)
-        //         {
-        //             SplineSegments.Insert((int)splineSegmentCount, new SplineSegmentData(
-        //                 spline.Idx,
-        //                 splineControlPointCount + (uint)i,
-        //                 BSplineSamplesPerSegment,
-        //                 splineSegmentCount * BSplineSamplesPerSegment
-        //                 ));
-
-        //             splineSampleCount += BSplineSamplesPerSegment;
-        //             splineSegmentCount += 1;
-        //         }
-        //     }
-        //     else
-        //     {
-        //         // Update segment
-        //         for (int i = 0; i < NumSegments; i++)
-        //         {
-        //             SplineSegmentData splineSegment = SplineSegments[(int)splineSegmentCount];
-        //             splineSegment.SplineIdx = spline.Idx;
-        //             splineSegment.BeginControlPointIdx = splineControlPointCount + (uint)i;
-        //             splineSegment.NumSamples = BSplineSamplesPerSegment;
-        //             splineSegment.BeginSamplePointIdx = splineSegmentCount * BSplineSamplesPerSegment;
-        //             SplineSegments[(int)splineSegmentCount] = splineSegment;
-
-        //             splineSampleCount += BSplineSamplesPerSegment;
-        //             splineSegmentCount += 1;
-        //         }
-        //     }
-
-
-
-        //     // Add all control points of this spline
-        //     // We have to add *degree* times the first and last control points to make the spline coincide with its endpoints
-        //     // Remember to add cp0 degree-1 times, because the loop that adds all the points will add the last remaining cp0
-        //     // See: https://web.mit.edu/hyperbook/Patrikalakis-Maekawa-Cho/node17.html
-        //     SplineControlPointData[] controlPoints = new SplineControlPointData[2 * (BSplineDegree - 1) + ControlPointCount];
-        //     for (int i = 0; i < BSplineDegree; i++)
-        //     {
-        //         controlPoints[i].Position = basisSpline.ScaledStraighthenPoints[0];
-        //     }
-        //     for (int i = 1; i < ControlPointCount - 1; i++)
-        //     {
-        //         controlPoints[BSplineDegree - 1 + i].Position = basisSpline.ScaledStraighthenPoints[i];
-        //     }
-        //     for (int i = BSplineDegree + (ControlPointCount - 1) - 1; i < controlPoints.Length; i++)
-        //     {
-        //         controlPoints[i].Position = basisSpline.ScaledStraighthenPoints[ControlPointCount - 1];
-        //     }
-        //     SplineControlPoints.AddRange(controlPoints); // AddRange is faster than adding items in a loop
-        //     splineControlPointCount += (uint)controlPoints.Length;
-        // }
-
-
-        // // Finally, set up buffers
-        // InSplineData.SetData(Splines);
-        // InSplineControlPointData.SetData(SplineControlPoints);
-        // InSplineSegmentData.SetData(SplineSegments);
+        InSplineData.SetData(Splines);
+        InSplineControlPointData.SetData(SplineControlPoints);
+        InSplineSegmentData.SetData(SplineSegments);
     }
 
     // private GameObject DrawStraightLine3D(Vector3 start, Vector3 end, Color color)

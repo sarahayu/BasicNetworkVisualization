@@ -51,7 +51,7 @@ void CSMain(uint3 id : SV_DispatchThreadID, uint3 GroupThreadId : SV_GroupThread
         sample.SplineIdx = SplineData.Idx;
 
         // Position
-        if (SplineData.LinkState == LINKSTATE_FOCUS || SplineData.LinkState == LINKSTATE_HIGHLIGHTFOCUS) { // Straight display, no curve calculation
+        if (false) {//(SplineData.LinkState == LINKSTATE_FOCUS || SplineData.LinkState == LINKSTATE_HIGHLIGHTFOCUS) { // Straight display, no curve calculation
             sample.Position = lerp(SplineData.StartPosition, SplineData.EndPosition, t);
         } else { // Curved display  
             sample.Position = (mul(mul(params, Coefficients), Geometry)).xyz;
@@ -59,21 +59,11 @@ void CSMain(uint3 id : SV_DispatchThreadID, uint3 GroupThreadId : SV_GroupThread
 
         // Color
         sample.ColorRGBA = lerp(SplineData.StartColorRGBA, SplineData.EndColorRGBA, colorBlendFactor);
-        if (SplineData.LinkState == LINKSTATE_CONTEXT || SplineData.LinkState == LINKSTATE_NORMAL) {
+        if (SplineData.LinkState == LINKSTATE_ACTIVE) {
             sample.ColorRGBA.a = max(COLOR_MINIMUM_ALPHA, abs(1 - (colorBlendFactor*2)) * COLOR_NORMAL_ALPHA_FACTOR); // Arching alpha gradient src-1.0-0.0-1.0-dst
         }
-        if (SplineData.LinkState == LINKSTATE_FOCUS) { // Focus Lines will be white
-            sample.ColorRGBA = COLOR_FOCUS;
-        }
-        if (SplineData.LinkState == LINKSTATE_CONTEXT) {
-            sample.ColorRGBA.a = max(COLOR_MINIMUM_ALPHA, sample.ColorRGBA.a * COLOR_CONTEXT_ALPHA_FACTOR); // For context links lower the alpha to emphasize other links
-        }
-        if (SplineData.LinkState == LINKSTATE_FOCUS2CONTEXT) {
-            sample.ColorRGBA.a = max(COLOR_MINIMUM_ALPHA, sample.ColorRGBA.a * COLOR_FOCUS2CONTEXT_ALPHA_FACTOR);
-        }
-        if (SplineData.LinkState == LINKSTATE_HIGHLIGHT || SplineData.LinkState == LINKSTATE_HIGHLIGHTFOCUS) {
-            sample.ColorRGBA = COLOR_HIGHLIGHT;
-            //sample.ColorRGBA.a = max(COLOR_MINIMUM_ALPHA, colorBlendFactor); // One-way alpha gradient src-1.0-0.5-0.0-dst
+        else if (SplineData.LinkState == LINKSTATE_INACTIVE) {
+            sample.ColorRGBA.a = 0;
         }
 
         OutSamplePointData[BeginOutSamplePointDataIdx + SampleIdx] = sample;

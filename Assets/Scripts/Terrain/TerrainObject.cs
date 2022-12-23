@@ -123,7 +123,7 @@ public class TerrainObject : MonoBehaviour
             var selectedNodes = _networkData.nodes.Where(n => inOutline.Contains(n.id)).ToList();
             _onSelected.Invoke(new SelectionEventData()
             {
-                groupsSelected = selectedNodes
+                nodesSelected = selectedNodes
             });
         }
     }

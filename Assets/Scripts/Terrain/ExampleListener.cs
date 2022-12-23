@@ -8,7 +8,7 @@ public class ExampleListener : MonoBehaviour
     {
         var outStr = "Example: ";
 
-        foreach (var node in eventData.groupsSelected)
+        foreach (var node in eventData.nodesSelected)
             outStr += node.name + ",";
 
         print(outStr);

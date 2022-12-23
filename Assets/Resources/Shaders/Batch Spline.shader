@@ -32,6 +32,7 @@ Shader "Custom/Batch Spline"
 			#include "Spline Data.cginc"
 
             float _LineWidth; // Used to adjust the line thickness
+            float4x4 _Transform;
 
             struct v2f
             {
@@ -68,9 +69,9 @@ Shader "Custom/Batch Spline"
                 SplineSampleIdx += idxOffset;
 
                 // Calculate the normal and from that the offset for the current line segment
-                float3 curr = OutSamplePointData[SplineSampleIdx].Position;
-                float3 prev = OutSamplePointData[SplineSampleIdx - 1].Position;
-                float3 next = OutSamplePointData[SplineSampleIdx + 1].Position;
+                float3 curr = mul(_Transform, float4(OutSamplePointData[SplineSampleIdx].Position, 1));
+                float3 prev = mul(_Transform, float4(OutSamplePointData[SplineSampleIdx - 1].Position, 1));
+                float3 next = mul(_Transform, float4(OutSamplePointData[SplineSampleIdx + 1].Position, 1));
 
 
                 float3 tangent = (next - prev);
@@ -80,7 +81,8 @@ Shader "Custom/Batch Spline"
                 float3 offset = normalize(mul(UNITY_MATRIX_MV, normal)) * (_LineWidth/2);
 
                 // Transform the point to ViewSpace and add the offset
-                curr = UnityObjectToViewPos(OutSamplePointData[SplineSampleIdx].Position);
+                curr = mul(_Transform, float4(OutSamplePointData[SplineSampleIdx].Position, 1));
+                curr = UnityObjectToViewPos(curr);
                 if (vid % 6 == 0 || vid % 6 == 2 || vid % 6 == 5) { // Checks if the vertex that vid indicates lies on the bottom or top of the line
                     curr -= offset;
                 } else {

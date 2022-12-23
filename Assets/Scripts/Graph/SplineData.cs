@@ -74,9 +74,11 @@ public struct SplineData
     public Vector3 EndPosition;         // Last point of the spline
     public Color StartColorRGBA;        // Start color of the spline
     public Color EndColorRGBA;          // End color of the spline
-    public uint LinkState;              // HighLight (0), Context (1), Focus2Context (2), Focus (3), Normal (4). This will influence how the spline is drawn in terms of shape (straight/curved) color and alpha.
+    public uint LinkState;              // 0 = inactive, 1 = active
+    
+    //// HighLight (0), Context (1), Focus2Context (2), Focus (3), Normal (4). This will influence how the spline is drawn in terms of shape (straight/curved) color and alpha.
 
-    public SplineData(uint Idx, uint NumSegments, uint BeginSplineSegmentIdx, uint NumSamples, uint BeginSamplePointIdx, Vector3 StartPosition, Vector3 EndPosition, Color StartColorRGBA, Color EndColorRGBA, uint LinkState = 4)
+    public SplineData(uint Idx, uint NumSegments, uint BeginSplineSegmentIdx, uint NumSamples, uint BeginSamplePointIdx, Vector3 StartPosition, Vector3 EndPosition, Color StartColorRGBA, Color EndColorRGBA, uint LinkState = 1)
     {
         this.Idx = Idx;
         this.NumSegments = NumSegments;

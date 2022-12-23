@@ -5,7 +5,7 @@ using UnityEngine.Events;
 
 public class SelectionEventData
 {
-    public List<NodeData> groupsSelected;
+    public List<NodeData> nodesSelected;
 }
 public class DeselectionEventData
 {
