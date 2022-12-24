@@ -7,7 +7,7 @@ using System.Linq;
 class NodeObject
 {
     public NodeData data;
-    public GameObject nodeObject;
+    public GameObject gameObject;
 
     public HSV color;
     public int idInNetworkObject;
@@ -79,7 +79,6 @@ public class NetworkObject : MonoBehaviour
     [Range(0.0f, 1.0f)] public float linkNormalAlphaFactor = 1f;
     [Range(0.0f, 1.0f)] public float linkContextAlphaFactor = 0.5f;
     [Range(0.0f, 1.0f)] public float linkContext2FocusAlphaFactor = 0.8f;
-    Dictionary<LinkData, GameObject> _linkGroup = new Dictionary<LinkData, GameObject>();
     Dictionary<int, Vector3> groupCMS = null;
 
     void Awake()
@@ -91,7 +90,7 @@ public class NetworkObject : MonoBehaviour
     {
         // have to wait for SharedNetworkData
         SetupGameObjects();
-        LayoutUpdate();
+        SetupSplines();
     }
 
     void Update()
@@ -167,10 +166,10 @@ public class NetworkObject : MonoBehaviour
         {
             bool selected = eventData.nodesSelected.Any(item => item.id == node.idInNetworkObject);
             if (!selected)
-                node.nodeObject.SetActive(false);
+                node.gameObject.SetActive(false);
             else
             {
-                node.nodeObject.SetActive(true);
+                node.gameObject.SetActive(true);
                 foreach (var link in node.links)
                 {
                     int otherIdx = link.data.source == node.idInNetworkObject ? link.data.target : link.data.source;
@@ -204,7 +203,7 @@ public class NetworkObject : MonoBehaviour
         }
         
         foreach (var node in nodeObjects)
-            node.nodeObject.SetActive(true);
+            node.gameObject.SetActive(true);
 
         Redraw(recomputeSplines: false);
     }
@@ -214,36 +213,11 @@ public class NetworkObject : MonoBehaviour
     {
         List<int> nodesWithMovedAsTarget = new List<int>();
 
-        int movedObjectIdx = networkIdxToObjectIdx[movedIndex];
+        var nodeObject = nodeObjects[networkIdxToObjectIdx[movedIndex]];
 
-        foreach (var link in nodeObjects[movedObjectIdx].links)
-        {
-            var srcInd = networkIdxToObjectIdx[link.data.source];
-            var tarInd = networkIdxToObjectIdx[link.data.target];
+        UpdateNodePosInSharedNetwork(nodeObject.data, nodeObject.gameObject.transform);
 
-            var sourceNode = nodeObjects[srcInd].nodeObject;
-            var targetNode = nodeObjects[tarInd].nodeObject;
-
-            var linkObject = links[link.index];
-
-            var toTarget = targetNode.transform.localPosition - sourceNode.transform.localPosition;
-            var dist = toTarget.magnitude;
-            var newScale = linkObject.transform.localScale;
-            newScale.y = dist;
-
-            linkObject.transform.localScale = newScale;
-            linkObject.transform.localPosition = sourceNode.transform.localPosition + toTarget / 2;
-
-            linkObject.transform.LookAt(targetNode.transform.position);
-            linkObject.transform.RotateAround(linkObject.transform.position, linkObject.transform.right, 90);
-
-            // var dec = Mathf.Atan2(Mathf.Sqrt(toTarget.x * toTarget.x + toTarget.z * toTarget.z), toTarget.y);
-            // var ra = Mathf.Atan2(toTarget.z, toTarget.x);
-            // linkObject.transform.rotation = new Quaternion();
-            // linkObject.transform.RotateAround(sourceNode.transform.localPosition, Vector3.right, dec * Mathf.Rad2Deg);
-            // linkObject.transform.RotateAround(sourceNode.transform.localPosition, Vector3.up, Mathf.Atan2(toTarget.x, toTarget.z) * Mathf.Rad2Deg);
-
-        }
+        Redraw(recomputeSplines: true);
     }
 
     void UpdateNodePosInSharedNetwork(NodeData node, Transform transform)
@@ -266,8 +240,6 @@ public class NetworkObject : MonoBehaviour
 
     void SetupGameObjects()
     {
-        // cameraTransform = worldCamera.GetComponent<Transform>();
-
         int objectIdx = 0;
         foreach (var node in networkData.nodes)
         {
@@ -279,7 +251,7 @@ public class NetworkObject : MonoBehaviour
             nodeObjects.Add(new NodeObject()
             {
                 data = node,
-                nodeObject = nodeGameObject,
+                gameObject = nodeGameObject,
                 color = node.color,
                 idInNetworkObject = node.id
             });
@@ -327,35 +299,11 @@ public class NetworkObject : MonoBehaviour
         BSplineComputeShader.SetFloat("COLOR_FOCUS2CONTEXT_ALPHA_FACTOR", linkContext2FocusAlphaFactor);
     }
 
-    public void LayoutUpdate()
-    {
-        print("Layout Update!");
-        // layoutReady = false;
-        
+    void SetupSplines()
+    {        
         foreach (var link in networkData.links)
         {
-
-            var source = nodeObjects[networkIdxToObjectIdx[link.source]].nodeObject;
-            var target = nodeObjects[networkIdxToObjectIdx[link.target]].nodeObject;
-            var start = source.transform.localPosition;
-            var end = target.transform.localPosition;
-
-            // Draws the graph using edge bundling and splines...
-            if (true)//(isEdgeBundling)
-            {
-                // GameObject linkObj;
-                // linkObj = DrawBSplineCurve(link);
-                _linkGroup.Add(link, null);
-                // linkIdxGroup.Add(link.linkIdx, linkObj);
-
-                BaseSplines.Add(new BasisSpline());
-            }
-            else // ...or draws it using straight lines
-            {
-                // var linkObj = DrawStraightLine3D(start * spaceScale, end * spaceScale, LinkColor);
-                // _linkGroup.Add(link, linkObj);
-                // linkIdxGroup.Add(link.linkIdx, linkObj);
-            }
+            BaseSplines.Add(new BasisSpline());
         }
 
         ComputeCenterMasses();
@@ -365,8 +313,6 @@ public class NetworkObject : MonoBehaviour
         // Run the ComputeShader. 1 Thread per segment.
         int kernel = BSplineComputeShader.FindKernel("CSMain");
         BSplineComputeShader.Dispatch(kernel, Mathf.CeilToInt(SplineSegments.Count / 32), 1, 1);
-
-        // layoutReady = true;
     }
 
     private void InitializeComputeBuffers()
@@ -383,72 +329,64 @@ public class NetworkObject : MonoBehaviour
         uint splineIdx = 0;
         foreach (var link in networkData.links)
         {
-            // Draws the graph using edge bundling and splines...
-            if (true)//(isEdgeBundling)
+            int sourceIdx = networkIdxToObjectIdx[link.source], 
+                targetIdx = networkIdxToObjectIdx[link.target];
+
+            var source = nodeObjects[sourceIdx];
+            var target = nodeObjects[targetIdx];
+
+            var straightenPoints = BaseSplines[link.id].StraightenPoints;
+            int NumSegments = straightenPoints.Count() + BSplineDegree - 2; //NumControlPoints + Degree - 2 (First/Last Point)
+            Color sourceColor = source.color.ToRGB();
+            Color targetColor = target.color.ToRGB();
+
+            Vector3 startPosition = source.gameObject.transform.localPosition;
+            Vector3 endPosition = target.gameObject.transform.localPosition;
+            // uint linkState = (uint)link.linkDraw.GetState();
+            SplineData spline = new SplineData(splineIdx++, (uint)NumSegments, splineSegmentCount, (uint)NumSegments * BSplineSamplesPerSegment, splineSampleCount, startPosition, endPosition, sourceColor, targetColor);//, linkState);
+            Splines.Add(spline);
+
+            // Add all segments of this spline
+            for (int i = 0; i < NumSegments; i++)
             {
-                /*
-                 * Add Compute Shader data
-                 */
+                SplineSegments.Add(new SplineSegmentData(
+                    spline.Idx,
+                    splineControlPointCount + (uint)i,
+                    BSplineSamplesPerSegment,
+                    splineSegmentCount * BSplineSamplesPerSegment
+                    ));
 
-                int sourceIdx = networkIdxToObjectIdx[link.source], 
-                    targetIdx = networkIdxToObjectIdx[link.target];
+                splineSampleCount += BSplineSamplesPerSegment;
+                splineSegmentCount += 1;
+            }
 
-                var source = nodeObjects[sourceIdx];
-                var target = nodeObjects[targetIdx];
+            // Add all control points of this spline
+            // We have to add *degree* times the first and last control points to make the spline coincide with its endpoints
+            // Remember to add cp0 degree-1 times, because the loop that adds all the points will add the last remaining cp0
+            // See: https://web.mit.edu/hyperbook/Patrikalakis-Maekawa-Cho/node17.html
 
-                var straightenPoints = BaseSplines[link.id].StraightenPoints;
-                int NumSegments = straightenPoints.Count() + BSplineDegree - 2; //NumControlPoints + Degree - 2 (First/Last Point)
-                Color sourceColor = source.color.ToRGB();
-                Color targetColor = target.color.ToRGB();
-
-                Vector3 startPosition = source.nodeObject.transform.localPosition;
-                Vector3 endPosition = target.nodeObject.transform.localPosition;
-                // uint linkState = (uint)link.linkDraw.GetState();
-                SplineData spline = new SplineData(splineIdx++, (uint)NumSegments, splineSegmentCount, (uint)NumSegments * BSplineSamplesPerSegment, splineSampleCount, startPosition, endPosition, sourceColor, targetColor);//, linkState);
-                Splines.Add(spline);
-
-                // Add all segments of this spline
-                for (int i = 0; i < NumSegments; i++)
-                {
-                    SplineSegments.Add(new SplineSegmentData(
-                        spline.Idx,
-                        splineControlPointCount + (uint)i,
-                        BSplineSamplesPerSegment,
-                        splineSegmentCount * BSplineSamplesPerSegment
-                        ));
-
-                    splineSampleCount += BSplineSamplesPerSegment;
-                    splineSegmentCount += 1;
-                }
-
-                // Add all control points of this spline
-                // We have to add *degree* times the first and last control points to make the spline coincide with its endpoints
-                // Remember to add cp0 degree-1 times, because the loop that adds all the points will add the last remaining cp0
-                // See: https://web.mit.edu/hyperbook/Patrikalakis-Maekawa-Cho/node17.html
-
-                for (int i = 0; i < BSplineDegree - 1; i++)
-                {
-                    SplineControlPoints.Add(new SplineControlPointData(straightenPoints[0]));
-                    splineControlPointCount += 1;
-                }
-                for (int i = 0; i < straightenPoints.Count(); i++)
-                {
-                    SplineControlPoints.Add(new SplineControlPointData(
-                            straightenPoints[i]
-                        ));
-                    splineControlPointCount += 1;
-                }
-                for (int i = 0; i < BSplineDegree - 1; i++)
-                {
-                    SplineControlPoints.Add(new SplineControlPointData(straightenPoints[straightenPoints.Count() - 1]));
-                    splineControlPointCount += 1;
-                }
-                
-                SplineControlPoints.Add(new SplineControlPointData(startPosition));
-                splineControlPointCount += 1;
-                SplineControlPoints.Add(new SplineControlPointData(endPosition));
+            for (int i = 0; i < BSplineDegree - 1; i++)
+            {
+                SplineControlPoints.Add(new SplineControlPointData(straightenPoints[0]));
                 splineControlPointCount += 1;
             }
+            for (int i = 0; i < straightenPoints.Count(); i++)
+            {
+                SplineControlPoints.Add(new SplineControlPointData(
+                        straightenPoints[i]
+                    ));
+                splineControlPointCount += 1;
+            }
+            for (int i = 0; i < BSplineDegree - 1; i++)
+            {
+                SplineControlPoints.Add(new SplineControlPointData(straightenPoints[straightenPoints.Count() - 1]));
+                splineControlPointCount += 1;
+            }
+            
+            SplineControlPoints.Add(new SplineControlPointData(startPosition));
+            splineControlPointCount += 1;
+            SplineControlPoints.Add(new SplineControlPointData(endPosition));
+            splineControlPointCount += 1;
         }
 
         // Finally, set up buffers and bind them to the shader
@@ -470,7 +408,6 @@ public class NetworkObject : MonoBehaviour
 
 
         // Bind the buffers to the LineRenderer Material
-        // batchSplineMaterial.SetBuffer("InSplineData", InSplineData);
         batchSplineMaterial.SetBuffer("OutSamplePointData", OutSampleControlPointData);
         batchSplineMaterial.SetMatrix("_Transform", transform.localToWorldMatrix);
     }
@@ -479,7 +416,10 @@ public class NetworkObject : MonoBehaviour
     void Redraw(bool recomputeSplines = true)
     {
         if (recomputeSplines)
+        {
             ComputeControlPoints();
+            UpdateSplines();
+        }
         UpdateComputeBuffers();
 
         // Run the ComputeShader. 1 Thread per segment.
@@ -533,78 +473,44 @@ public class NetworkObject : MonoBehaviour
         }
     }
 
-    void UpdateLinkPosition()
+    void UpdateSplines()
     {
-        // Initialize Compute Shader data
         SplineControlPoints = new List<SplineControlPointData>();
 
         uint splineSegmentCount = 0;
         uint splineControlPointCount = 0;
         uint splineSampleCount = 0;
 
-        uint splineIdx = 0;
+        int splineIdx = 0;
 
         foreach (var link in networkData.links)
         {
-            // BasisSpline basisSpline = splines[entry.Key];
-            int ControlPointCount = 2;//basisSpline.ScaledStraighthenPoints.Length;
-            int NumSegments = ControlPointCount + BSplineDegree - 2; //NumControlPoints + Degree - 2 (First/Last Point)
-
-
-            /*
-            * Add Compute Shader data
-            */
             int sourceIdx = networkIdxToObjectIdx[link.source], 
                 targetIdx = networkIdxToObjectIdx[link.target];
 
             var source = nodeObjects[sourceIdx];
             var target = nodeObjects[targetIdx];
+
             var straightenPoints = BaseSplines[link.id].StraightenPoints;
-            Vector3 startPosition = straightenPoints[0];
-            Vector3 endPosition = straightenPoints[ControlPointCount - 1];
-            uint linkState = 4;// (uint)entry.Key.linkDraw._linkState;
+            var ControlPointCount = straightenPoints.Count();
+            int NumSegments = ControlPointCount + BSplineDegree - 2;
+            
+            Vector3 startPosition = source.gameObject.transform.localPosition;
+            Vector3 endPosition = target.gameObject.transform.localPosition;
 
-            // Update spline information, we can preserve colors since their lookup is expensive
-            // SplineData spline = Splines[splineIdx];
-            // int OldNumSegments = (int)spline.NumSegments;
-            // spline.StartPosition = startPosition;
-            // spline.EndPosition = endPosition;
-            // spline.LinkState = linkState;
-            // spline.NumSegments = (uint)NumSegments;
-            // spline.BeginSplineSegmentIdx = splineSegmentCount;
-            // spline.NumSamples = (uint)NumSegments * BSplineSamplesPerSegment;
-            // spline.BeginSamplePointIdx = splineSampleCount;
-            // Splines[splineIdx++] = spline;
+            // Update spline positions
 
-            // To improve performance, we differentiate between cases where there's the same number of segments and where the number differs
-            // For same number of segments, we only update the data without creating now instances
-            // For differing number of segments, we delete the old range of segment data and insert the new one in place
-            // if (NumSegments != OldNumSegments)
-            // {
-            //     // Remove old segment data
-            //     SplineSegments.RemoveRange((int)splineSegmentCount, OldNumSegments);
+            SplineData spline = Splines[splineIdx];
+            spline.StartPosition = startPosition;
+            spline.EndPosition = endPosition;
+            Splines[splineIdx++] = spline;
 
-            //     // Add new segment data
-            //     for (int i = 0; i < NumSegments; i++)
-            //     {
-            //         SplineSegments.Insert((int)splineSegmentCount, new SplineSegmentData(
-            //             spline.Idx,
-            //             splineControlPointCount + (uint)i,
-            //             BSplineSamplesPerSegment,
-            //             splineSegmentCount * BSplineSamplesPerSegment
-            //             ));
+            // Update segments
 
-            //         splineSampleCount += BSplineSamplesPerSegment;
-            //         splineSegmentCount += 1;
-            //     }
-            // }
-            // else
-            // {
-            // Update segment
             for (int i = 0; i < NumSegments; i++)
             {
                 SplineSegmentData splineSegment = SplineSegments[(int)splineSegmentCount];
-                splineSegment.SplineIdx = splineIdx;
+                splineSegment.SplineIdx = spline.Idx;
                 splineSegment.BeginControlPointIdx = splineControlPointCount + (uint)i;
                 splineSegment.NumSamples = BSplineSamplesPerSegment;
                 splineSegment.BeginSamplePointIdx = splineSegmentCount * BSplineSamplesPerSegment;
@@ -613,14 +519,9 @@ public class NetworkObject : MonoBehaviour
                 splineSampleCount += BSplineSamplesPerSegment;
                 splineSegmentCount += 1;
             }
-            // }
+            
+            // Update control points
 
-
-
-            // Add all control points of this spline
-            // We have to add *degree* times the first and last control points to make the spline coincide with its endpoints
-            // Remember to add cp0 degree-1 times, because the loop that adds all the points will add the last remaining cp0
-            // See: https://web.mit.edu/hyperbook/Patrikalakis-Maekawa-Cho/node17.html
             SplineControlPointData[] controlPoints = new SplineControlPointData[2 * (BSplineDegree - 1) + ControlPointCount];
             for (int i = 0; i < BSplineDegree; i++)
             {
@@ -637,7 +538,6 @@ public class NetworkObject : MonoBehaviour
             
             SplineControlPoints.AddRange(controlPoints); // AddRange is faster than adding items in a loop
             splineControlPointCount += (uint)controlPoints.Length;
-            splineIdx++;
         }
     }
 
@@ -647,21 +547,4 @@ public class NetworkObject : MonoBehaviour
         InSplineControlPointData.SetData(SplineControlPoints);
         InSplineSegmentData.SetData(SplineSegments);
     }
-
-    // private GameObject DrawStraightLine3D(Vector3 start, Vector3 end, Color color)
-    // {
-    //     var link = Instantiate(linkPrefab);
-    //     link.transform.localPosition = (start + end) / 2.0f;
-    //     link.transform.localRotation = Quaternion.FromToRotation(Vector3.up, end - start);
-    //     link.transform.localScale = new Vector3(linkWidth, Vector3.Distance(start, end) * 0.5f, linkWidth);
-    //     return link;
-    // }
-
-    // private GameObject DrawBSplineCurve(Link link)
-    // {
-    //     var newObj = Instantiate(bSplinePrefab, transform);
-    //     //var basic = newObj.GetComponent<BasisSpline>();
-    //     //basic.DrawSpline(link, network, spaceScale, nodeGroup);
-    //     return newObj;
-    // }
 }
