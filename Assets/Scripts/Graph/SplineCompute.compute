@@ -51,11 +51,7 @@ void CSMain(uint3 id : SV_DispatchThreadID, uint3 GroupThreadId : SV_GroupThread
         sample.SplineIdx = SplineData.Idx;
 
         // Position
-        if (false) {//(SplineData.LinkState == LINKSTATE_FOCUS || SplineData.LinkState == LINKSTATE_HIGHLIGHTFOCUS) { // Straight display, no curve calculation
-            sample.Position = lerp(SplineData.StartPosition, SplineData.EndPosition, t);
-        } else { // Curved display  
-            sample.Position = (mul(mul(params, Coefficients), Geometry)).xyz;
-        }
+        sample.Position = (mul(mul(params, Coefficients), Geometry)).xyz;
 
         // Color
         sample.ColorRGBA = lerp(SplineData.StartColorRGBA, SplineData.EndColorRGBA, colorBlendFactor);

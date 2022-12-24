@@ -25,10 +25,6 @@ public class NetworkObject : MonoBehaviour
 {
     public SharedNetworkData networkData;
     public GameObject nodePrefab;
-    // public Camera worldCamera;
-    public float minLinkThickness = 0.01f;
-    public float maxLinkThickness = 0.15f;
-    public float lineThicknessGrowth = 1.2f;
     public Transform rightController;
     public Transform leftController;
 
@@ -60,26 +56,17 @@ public class NetworkObject : MonoBehaviour
     List<SplineData> Splines;
     List<SplineSegmentData> SplineSegments;
     List<SplineControlPointData> SplineControlPoints;
+    List<BasisSpline> BaseSplines = new List<BasisSpline>();
+    Dictionary<int, Vector3> groupCMS = null;
 
     [Header("Edge Settings")]
-    public Color LinkColor = Color.gray;
     [Range(0.0f, 0.1f)] public float linkWidth = 0.005f;
-    [Range(0.001f, 20f)] public float spaceScale = 10f;
 
-    List<BasisSpline> BaseSplines = new List<BasisSpline>();
-
-    public int threadNum = 16;
     [Range(0.0f, 1.0f)] public float edgeBundlingStrength = 0.8f;
     [Range(0.0f, 10.0f)] public float edgeThrottlingDistance = 3f;
 
-    public Color nodeHighlightColor;
-    public Color linkHighlightColor;
-    public Color linkFocusColor;
     [Range(0.0f, 1.0f)] public float linkMinimumAlpha = 0.01f;
     [Range(0.0f, 1.0f)] public float linkNormalAlphaFactor = 1f;
-    [Range(0.0f, 1.0f)] public float linkContextAlphaFactor = 0.5f;
-    [Range(0.0f, 1.0f)] public float linkContext2FocusAlphaFactor = 0.8f;
-    Dictionary<int, Vector3> groupCMS = null;
 
     void Awake()
     {
@@ -288,15 +275,11 @@ public class NetworkObject : MonoBehaviour
     {
         // Initialize the material, the shader will draw the splines/links
         batchSplineMaterial = new Material(Shader.Find("Custom/Batch Spline"));
-        batchSplineMaterial.SetFloat("_LineWidth", linkWidth * spaceScale);
+        batchSplineMaterial.SetFloat("_LineWidth", linkWidth);
 
         // Configure the spline compute shader
-        BSplineComputeShader.SetVector("COLOR_HIGHLIGHT", linkHighlightColor);
-        BSplineComputeShader.SetVector("COLOR_FOCUS", linkFocusColor);
         BSplineComputeShader.SetFloat("COLOR_MINIMUM_ALPHA", linkMinimumAlpha);
         BSplineComputeShader.SetFloat("COLOR_NORMAL_ALPHA_FACTOR", linkNormalAlphaFactor);
-        BSplineComputeShader.SetFloat("COLOR_CONTEXT_ALPHA_FACTOR", linkContextAlphaFactor);
-        BSplineComputeShader.SetFloat("COLOR_FOCUS2CONTEXT_ALPHA_FACTOR", linkContext2FocusAlphaFactor);
     }
 
     void SetupSplines()

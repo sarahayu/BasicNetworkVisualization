@@ -1,20 +1,10 @@
-// Link States 
-// #define LINKSTATE_HIGHLIGHT 0
-// #define LINKSTATE_CONTEXT 1
-// #define LINKSTATE_FOCUS2CONTEXT 2
-// #define LINKSTATE_FOCUS 3
-// #define LINKSTATE_NORMAL 4
-// #define LINKSTATE_HIGHLIGHTFOCUS 5
+// Link States
 #define LINKSTATE_INACTIVE 0
 #define LINKSTATE_ACTIVE 1
 
 // Colors and Transparency
-float4 COLOR_FOCUS;
-float4 COLOR_HIGHLIGHT;
 float COLOR_MINIMUM_ALPHA;
 float COLOR_NORMAL_ALPHA_FACTOR;
-float COLOR_CONTEXT_ALPHA_FACTOR;
-float COLOR_FOCUS2CONTEXT_ALPHA_FACTOR;
 
 // Structs for Data
 struct SplineData {
